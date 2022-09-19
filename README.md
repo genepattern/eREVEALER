@@ -18,5 +18,28 @@ REVEALER2 is separated into two parts: REVEALER_preprocess and REVEALER. If you 
 
 ## REVEALER preprocess
 
-For the preprocessing step, there are few modes available. Detailed explanations of different mode is available in GenePattern documentation. Below are example codes for different mode.
+For the preprocessing step, there are few modes available. Detailed explanations of different mode is available in GenePattern documentation. Below are example codes for different mode. Files used in following examples can be found here(link to input files.)
 
+Run with default mode on TCGA MAF data:
+
+```bash
+$ REVEALER_preprocess \
+	-m class \
+	-i tcga_pancancer_082115.vep.filter_whitelisted.maf \
+	-pi HGVSp_Short
+```
+
+Run with weight compared to NFE2L2 pathway enrichment value:
+
+```bash
+$ REVEALER_preprocess \
+	-m weight \
+	-i tcga_pancancer_082115.vep.filter_whitelisted.maf \
+	-pi HGVSp_Short \
+	-p TCGA_NFE2L2 \
+	-o featureFiles/ \
+	-wt 0.02 \
+	-pf TCGA_NFE2L2.gct \
+	-pn NFE2L2.V2 \
+	-nm False
+```
