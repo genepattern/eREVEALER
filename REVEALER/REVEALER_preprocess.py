@@ -15,7 +15,7 @@ def main():
                         help="protein change identifier for dataset.", metavar="PROTEIN_IDENTIFIER",required=True)
 
     optional.add_argument("-m", "--mode", dest="mode",
-                        help="Mode, can be class, freq, weight, all, or comb. For more detail, check documentation. Default is class.", metavar="MODE")
+                        help="Mode, can be class, freq, weight, weight_filter, mutall, or comb. For more detail, check documentation. Default is class.", metavar="MODE")
     optional.add_argument("-r", "--ratio", dest="ratio",
                         help="Ratio of selected features by weight that is acceptable. Default is 1/3.", metavar="RATIO")
     optional.add_argument("-pf", "--phenotype_file", dest="phenotype_file",
