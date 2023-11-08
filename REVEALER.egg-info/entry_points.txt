@@ -1,0 +1,3 @@
+[console_scripts]
+REVEALER = REVEALER.REVEALER:main
+REVEALER_preprocess = REVEALER.REVEALER_preprocess:main

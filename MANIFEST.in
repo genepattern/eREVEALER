@@ -1,0 +1,5 @@
+include REVEALER/ccal/*.py
+include REVEALER/*.pyx
+include *.txt
+exclude REVEALER/*.c
+exclude REVEALER/*.so
