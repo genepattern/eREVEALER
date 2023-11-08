@@ -7,7 +7,7 @@ REVEALER2 (**RE**peated e**V**aluation of variabl**E**s condition**AL** **E**ntr
 REVEALER2 can be used in command line, jupyter notebook, and GenePattern. To use in command line or jupyter notebook, user need to install REVEALER2 with following code:
 
 ```bash
-$ pip install revealer2
+$ pip install revealer
 ```
 
 Example of using REVEALER2 in jupyter notebook can be found here(link to example jupyter notebook to be added). REVEALER2 can also be found in GenePattern and directly run on GenePattern server. Details can be found here(link to genepattern module to be added).
