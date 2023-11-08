@@ -34,6 +34,7 @@ cdef struct density:
 cdef np.double_t DELMAX=1000
 
 import matplotlib.pyplot as plt
+import plotly.express as px
 from scipy.stats import norm
 import seaborn as sns
 from tqdm.notebook import tqdm
@@ -44,7 +45,6 @@ import warnings
 import pickle
 import random
 import os
-import tarfile
 
 plt.switch_backend('agg')
 
@@ -444,7 +444,7 @@ cpdef np.double_t binaryInformationCoefficient_cython(
     """ Calculate IC between continuous 'y' and binary 'x' """
     cdef np.double_t  cor, y_bandwidth, sigma_y, deltak
     cdef np.double_t  term_2_pi_sigma_y, integral, mutual_information
-    cdef np.double_t  pX_0, pX_1, pysum, py0sum, py1sum, p_y_xsum
+    cdef np.double_t  pX_0, pX_1, pysum, py0sum, py1sum
     cdef int y_d, i, j, sumx, grid
     cdef np.double_t* normy
     cdef np.double_t* kernal
@@ -506,45 +506,47 @@ cpdef np.double_t binaryInformationCoefficient_cython(
                 p_y_1[index] += kernel[j]
 
     pysum = 0.0
-    p_y_xsum = 0.0
+    py0sum = 0.0
+    py1sum = 0.0
     
+    i = 0
     for i in range(grid):
         p_y_total[i] = p_y_total[i] + EPS
         p_y_0[i] = p_y_0[i] + EPS
         p_y_1[i] = p_y_1[i] + EPS
         pysum += p_y_total[i]
-        p_y_xsum += p_y_0[i] +  p_y_1[i]
-
+        py0sum += p_y_0[i]
+        py1sum += p_y_1[i]
+    
+    i = 0
     for i in range(grid):
         p_y_total[i] = p_y_total[i]/pysum
-        p_y_0[i] = p_y_0[i]/p_y_xsum
-        p_y_1[i] = p_y_1[i]/p_y_xsum    
+        p_y_0[i] = p_y_0[i]/py0sum
+        p_y_1[i] = p_y_1[i]/py1sum
         
     mutual_information = 0
     
     pX_1 = <double>sumx/<double>size
     pX_0 = <double>(size-sumx)/<double>size
-
+    integral = 0.0
     mutual_information = 0.0
+    i = 0
+    for i in range(grid):
+        integral = integral + (p_y_0[i] * log(p_y_0[i]/p_y_total[i]))
+    mutual_information +=  pX_0 * integral
     
     integral = 0.0
-    for i in range(grid):    
-        integral = integral + (p_y_0[i] * log(p_y_0[i]/(p_y_total[i] * pX_0)))
-      
-    mutual_information +=  integral
-    
-    integral = 0.0    
-    for i in range(grid):    
-        integral = integral + (p_y_1[i] * log(p_y_1[i]/(p_y_total[i] * pX_1)))
-
-    mutual_information +=  integral
+    i = 0
+    for i in range(grid):
+        integral = integral + (p_y_1[i] * log(p_y_1[i]/p_y_total[i]))
+    mutual_information +=  pX_1 * integral
     
     free(p_y_total)
     free(p_y_0)
     free(p_y_1)
     free(kernel)
     free(normy)
-
+    
     return (cor/fabs(cor)) * sqrt(1.0 - exp(-2.0 * mutual_information))
 
 @cython.boundscheck(False)
@@ -570,8 +572,8 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
     """
 
     cdef np.double_t  cor, sigma_y, term_2_pi_sigma_y, y_bandwidth, integral, deltak
-    cdef np.double_t  conditional_mutual_information, pX0Z0, pX0Z1, pX1Z0, pX1Z1, p_Z1, p_Z0
-    cdef np.double_t  pysum, pyx0z0sum, pyx0z1sum, pyx1z0sum ,pyx1z1sum ,pyz0sum ,pyz1sum, p_y_xsum, pyxzsum, pyxsum, pyzsum
+    cdef np.double_t  mutual_information, pX0Z0, pX0Z1, pX1Z0, pX1Z1
+    cdef np.double_t  pysum, pyx0z0sum, pyx0z1sum, pyx1z0sum ,pyx1z1sum ,pyz0sum ,pyz1sum
     cdef np.double_t* kernel
     cdef np.double_t* normy
     cdef np.double_t* p_y_total
@@ -581,17 +583,15 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
     cdef np.double_t* p_x1z1
     cdef np.double_t* p_z0
     cdef np.double_t* p_z1
-    cdef np.double_t* p_x0
-    cdef np.double_t* p_x1
     cdef int* saver
-    cdef int y_d, i, j, sumx, x0z0Count, x1z0Count, x0z1Count, x1z1Count, grid,sumz
+    cdef int y_d, i, j, sumx, x0z0Count, x1z0Count, x0z1Count, x1z1Count, grid
 
     cor = local_pearsonr(y, x, size)
     x0z0Count = 0
     x1z0Count = 0
     x0z1Count = 0
     x1z1Count = 0
-
+    
     i = 0
     for i in range(size):
         if x[i] == 0 and z[i] == 0:
@@ -602,11 +602,7 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
             x1z0Count += 1
         elif x[i] == 1 and z[i] == 1:
             x1z1Count += 1
-
-    sumz = 0
-    for i in range(size):
-        sumz += <int>z[i]
-
+    
     saver = <int*> malloc(4 * sizeof(int))
     for i in range(4):
         saver[i] = 0
@@ -632,8 +628,6 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
     p_y_total = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_z0 = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_z1 = <np.double_t*> malloc(grid * sizeof(np.double_t))
-    p_x0 = <np.double_t*> malloc(grid * sizeof(np.double_t))
-    p_x1 = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_x0z0 = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_x0z1 = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_x1z0 = <np.double_t*> malloc(grid * sizeof(np.double_t))
@@ -642,8 +636,6 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
         p_y_total[i] = 0.0
         p_z0[i] = 0.0
         p_z1[i] = 0.0
-        p_x0[i] = 0.0
-        p_x1[i] = 0.0
         p_x0z0[i] = 0.0
         p_x0z1[i] = 0.0
         p_x1z0[i] = 0.0
@@ -674,24 +666,18 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
             if 0 == x[i] and 0 == z[i] and saver[0] == 1:
                 p_x0z0[index] += kernel[j]
                 p_z0[index] += kernel[j]
-                p_x0[index] += kernel[j]
             elif 0 == x[i] and 1 == z[i] and saver[1] == 1:
                 p_x0z1[index] += kernel[j]
                 p_z1[index] += kernel[j]
-                p_x0[index] += kernel[j]
             elif 1 == x[i] and 0 == z[i] and saver[2] == 1:
                 p_x1z0[index] += kernel[j]
                 p_z0[index] += kernel[j]
-                p_x1[index] += kernel[j]
             elif 1 == x[i] and 1 == z[i] and saver[3] == 1:
                 p_x1z1[index] += kernel[j]
                 p_z1[index] += kernel[j]
-                p_x1[index] += kernel[j]
 
-    pZ_1 = <double>sumz/<double>size
-    pZ_0 = <double>(size - sumz)/<double>size
-    conditional_mutual_information = 0.0
-
+    mutual_information = 0.0
+                
     pysum = 0.0
     pyx0z0sum = 0.0
     pyx0z1sum = 0.0
@@ -699,101 +685,86 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
     pyx1z1sum = 0.0
     pyz0sum = 0.0
     pyz1sum = 0.0
-    p_y_zsum = 0.0
-    pyxsum = 0.0
-    pyzsum = 0.0
-    pyxzsum = 0.0
 
+    
     i = 0
     for i in range(grid):
         p_y_total[i] = p_y_total[i] + EPS
-        pysum += p_y_total[i]
-
-        p_x0[i] = p_x0[i] + EPS
-        p_x1[i] = p_x1[i] + EPS
-        pyxsum += p_x0[i] + p_x1[i]
-
         p_z0[i] = p_z0[i] + EPS
         p_z1[i] = p_z1[i] + EPS
-        pyzsum += p_z0[i] + p_z1[i]
-        if saver[0] != 0:
-            p_x0z0[i] = p_x0z0[i] + EPS
-            pyxzsum += p_x0z0[i]
-        if saver[1] != 0:
-            p_x0z1[i] = p_x0z1[i] + EPS
-            pyxzsum += p_x0z1[i]
-        if saver[2] != 0:
-            p_x1z0[i] = p_x1z0[i] + EPS
-            pyxzsum += p_x1z0[i]
-        if saver[3] != 0:
-            p_x1z1[i] = p_x1z1[i] + EPS
-            pyxzsum += p_x1z1[i]        
-
-
-        #pyxzsum += p_x0z0[i] + p_x0z1[i] + p_x1z0[i] + p_x1z1[i]
-
+        pysum += p_y_total[i]
+        pyz0sum += p_z0[i]
+        pyz1sum += p_z1[i]
+    
     i = 0
     for i in range(grid):
         p_y_total[i] = p_y_total[i]/pysum
-        p_z0[i] = p_z0[i]/pyxzsum 
-        p_z1[i] = p_z1[i]/pyxzsum 
-        p_x0[i] = p_x0[i]/pyxzsum 
-        p_x1[i] = p_x1[i]/pyxzsum 
-
+        p_z0[i] = p_z0[i]/pyz0sum 
+        p_z1[i] = p_z1[i]/pyz1sum 
+    
     if saver[0] != 0:
         i = 0
         for i in range(grid):
-            p_x0z0[i] = p_x0z0[i]/pyxzsum
+            p_x0z0[i] = p_x0z0[i] + EPS
+            pyx0z0sum += p_x0z0[i]
+        i = 0
+        for i in range(grid):
+            p_x0z0[i] = p_x0z0[i]/pyx0z0sum
         pX0Z0 = <double>x0z0Count/<double>size
         integral = 0.0
         i = 0
         for i in range(grid):
-            integral = integral + (p_x0z0[i] * log((p_x0z0[i] * pZ_0)/(p_z0[i] * pX0Z0)))
-            
-        conditional_mutual_information += integral
-
+            integral = integral + (p_x0z0[i] * log(p_x0z0[i]/p_z0[i]))
+        mutual_information +=  pX0Z0 * integral
+        
     if saver[1] != 0:
         i = 0
         for i in range(grid):
-            p_x0z1[i] = p_x0z1[i]/pyxzsum
-
+            p_x0z1[i] = p_x0z1[i] + EPS
+            pyx0z1sum += p_x0z1[i]
+        i = 0
+        for i in range(grid):
+            p_x0z1[i] = p_x0z1[i]/pyx0z1sum
         pX0Z1 = <double>x0z1Count/<double>size
         integral = 0.0
         i = 0
         for i in range(grid):
-            integral = integral + (p_x0z1[i] * log((p_x0z1[i] * pZ_1)/(p_z1[i] * pX0Z1)))
-
-        conditional_mutual_information += integral
-
+            integral = integral + (p_x0z1[i] * log(p_x0z1[i]/p_z1[i]))
+        mutual_information +=  pX0Z1 * integral
+        
     if saver[2] != 0:
         i = 0
         for i in range(grid):
-            p_x1z0[i] = p_x1z0[i]/pyxzsum
-
+            p_x1z0[i] = p_x1z0[i] + EPS
+            pyx1z0sum += p_x1z0[i]
+        i = 0
+        for i in range(grid):
+            p_x1z0[i] = p_x1z0[i]/pyx1z0sum
         pX1Z0 = <double>x1z0Count/<double>size
         integral = 0.0
         i = 0
         for i in range(grid):
-            integral = integral + (p_x1z0[i] * log((p_x1z0[i] * pZ_0)/(p_z0[i] * pX1Z0)))
-        conditional_mutual_information += integral
-
+            integral = integral + (p_x1z0[i] * log(p_x1z0[i]/p_z0[i]))
+        mutual_information +=  pX1Z0 * integral
+        
     if saver[3] != 0:
         i = 0
         for i in range(grid):
-            p_x1z1[i] = p_x1z1[i]/pyxzsum
-
+            p_x1z1[i] = p_x1z1[i] + EPS
+            pyx1z1sum += p_x1z1[i]
+        i = 0
+        for i in range(grid):
+            p_x1z1[i] = p_x1z1[i]/pyx1z1sum
         pX1Z1 = <double>x1z1Count/<double>size
         integral = 0.0
         i = 0
         for i in range(grid):
-            integral = integral + (p_x1z1[i] * log((p_x1z1[i] * pZ_1)/(p_z1[i] * pX1Z1)))
-        conditional_mutual_information += integral
+            integral = integral + (p_x1z1[i] * log(p_x1z1[i]/p_z1[i]))
+        mutual_information +=  pX1Z1 * integral
         
     free(p_y_total)
     free(p_z0)
     free(p_z1)
-    free(p_x0)
-    free(p_x1)
     free(p_x0z0)
     free(p_x0z1)
     free(p_x1z0)
@@ -801,8 +772,8 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
     free(kernel)
     free(saver)
     free(normy)
-
-    return (cor/fabs(cor)) * sqrt(1.0 - exp(-2.0 * conditional_mutual_information))
+    
+    return (cor/fabs(cor)) * sqrt(1.0 - exp(-2.0 * mutual_information))
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -896,6 +867,7 @@ cpdef np.double_t[:] rankCIC(
         res[i] = ConditionalInformationCoefficient_cython(y, x[i,:], z, k, size, bandwidth, 
                                                           bandwidth_mult, bandwidth_adj, 
                                                           neighborhood, deltay, miny)
+
     return res
 
 @cython.boundscheck(False)
@@ -1261,8 +1233,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
                   gmt_file = None,
                   alpha = 1,
                   neighborhood = 4,
-                  tissue_file = None,
-                  gzip = True
+                  tissue_file = None
                  ):
     
     report = ''
@@ -1351,8 +1322,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
                                                            locusdic = locusdic,
                                                            alpha = alpha,
                                                            neighborhood = neighborhood,
-                                                           tissue_file = tissue_file,
-                                                           gzip = gzip)
+                                                           tissue_file = tissue_file)
         
     elif mode == 'single':
         target_df, seed_df, featuresdf = REVEALERInner(prefix = prefix, comb = comb, grid = grid, 
@@ -1376,8 +1346,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
                                                        locusdic = locusdic,
                                                        alpha = alpha,
                                                        neighborhood = neighborhood,
-                                                       tissue_file = tissue_file,
-                                                       gzip = gzip)
+                                                       tissue_file = tissue_file)
         
     return target_df, seed_df, featuresdf
 
@@ -1410,8 +1379,7 @@ cpdef REVEALERInner(
     locusdic,
     alpha,
     neighborhood,
-    tissue_file,
-    gzip
+    tissue_file
     ):
 
     seedcmap = clr.LinearSegmentedColormap.from_list('custom greys', [(.9,.9,.9),(0.5,0.5,0.5)], 
@@ -1466,10 +1434,6 @@ cpdef REVEALERInner(
     else:
         report = report + 'Number of features passing threshold is: ' + str(len(comb.index)-1)+'\n'
     
-    if verbose != 0:
-        print('Number of samples is: ' + str(len(comb.columns)-1)+'\n')
-
-    report = report + 'Number of samples is: ' + str(len(comb.columns)-1)+'\n'
 
     start= time.time()
     cdef int size = len(comb.iloc[0])
@@ -1477,7 +1441,7 @@ cpdef REVEALERInner(
     cdef np.double_t miny = findmin(y, size)
     cdef np.double_t deltay = findmax(y, size) - findmin(y, size)
     i = 0
-    cdef np.double_t bandwidth = calc_bandwidth(y,size)/2
+    cdef np.double_t bandwidth = calc_bandwidth(y,size)
                                                 
     cdef np.int_t[:] cythonseed
     
@@ -1700,10 +1664,6 @@ cpdef REVEALERInner(
 
     with open(out_folder + prefix + 'report.txt','w') as f:
         f.write(report)
-
-    if gzip == True:
-        with tarfile.open(prefix+'.tar.gz', "w:gz") as tar:
-            tar.add(out_folder, arcname=os.path.basename(out_folder))
 
     if seed_name == None:
         return savecomb.iloc[[0]], None, savecomb.iloc[1:]
@@ -2656,7 +2616,7 @@ def savetopfig(
                         ha='center', va='center')
 
     #Save Plot
-    plt.savefig(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'_Result.'+figure_format,
+    plt.savefig(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'Result.'+figure_format,
                 format=figure_format)
     plt.close()
     
@@ -2679,7 +2639,7 @@ def savetopfig(
         gmt.loc[plotcomb.index.tolist()].to_csv(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'.gmt',sep='\t',header=False)
 
     #Save report
-    plotcomb.to_csv(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'_Result.txt',sep='\t')
+    plotcomb.to_csv(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'Result.txt',sep='\t')
         
     
 def saveresfigWithPval(
@@ -2893,7 +2853,7 @@ def saveresfigWithPval(
                     ha='center', va='center')
         
     #Save plot
-    plt.savefig(out_folder + prefix+'_Result.'+figure_format,format=figure_format)
+    plt.savefig(out_folder + prefix+'Result.'+figure_format,format=figure_format)
     plt.close()
     
     #Set new line of gene locus  to ,
@@ -2911,10 +2871,10 @@ def saveresfigWithPval(
     reportdf['pVals'] = [''] + pVals
 
     if (gmt is not None) and (all(elem in gmt.index.tolist() for elem in seedids) == True):
-        gmt.loc[seedids].to_csv(out_folder + prefix+'_Result.gmt',sep='\t',header=False)
+        gmt.loc[seedids].to_csv(out_folder + prefix+'Result.gmt',sep='\t',header=False)
     
     #Save report
-    reportdf.to_csv(out_folder + prefix+'_Result.txt',sep='\t')
+    reportdf.to_csv(out_folder + prefix+'Result.txt',sep='\t')
     
 def saveresfig(
     plotcomb,       #Dataframe used to plot 
@@ -3079,7 +3039,7 @@ def saveresfig(
             ax.text(0.5,0.5,"%.3f"%(CICs[(i-1)*2+2]), ha='center', va='center')
 
     #Save figure 
-    plt.savefig(out_folder + prefix+'_Result.'+figure_format,format=figure_format)
+    plt.savefig(out_folder + prefix+'Result.'+figure_format,format=figure_format)
     plt.close()
     
     #Set new line of gene locus  to ,
@@ -3096,10 +3056,10 @@ def saveresfig(
         reportdf['bootstrap'] = [''] + bootstraps
     
     if (gmt is not None) and (all(elem in gmt.index.tolist() for elem in seedids) == True):
-        gmt.loc[seedids].to_csv(out_folder + prefix+'_Result.gmt',sep='\t',header=False)
+        gmt.loc[seedids].to_csv(out_folder + prefix+'Result.gmt',sep='\t',header=False)
 
     #Save report
-    reportdf.to_csv(out_folder + prefix+'_Result.txt',sep='\t')
+    reportdf.to_csv(out_folder + prefix+'Result.txt',sep='\t')
     
 def topMatches(
     comb,           #Dataframe contain target and features

@@ -13,11 +13,11 @@ def main():
     parser._action_groups.append(optional)
     required.add_argument("-tf", "--target_file", dest="target_file",
                         help="Name of target file, has to be gct file.", metavar="TARGET_FILE",required=True)
-    required.add_argument("-f", "--feature_files", dest="feature_files",
+    required.add_argument("-f", "--feature_file", dest="feature_file",
                         help="Name of feature file, has to be gct file.", metavar="FEATURE_FILE",required=True)
 
-    optional.add_argument("-sf", "--seed_files", dest="seed_files",
-                        help="Name of seed file.", metavar="SEED_FILES")
+    optional.add_argument("-sf", "--seed_file", dest="seed_file",
+                        help="Name of seed file.", metavar="SEED_FILE")
     optional.add_argument("-p", "--prefix", dest="prefix",
                         help="Prefix for results files. Default is REVEALER.", metavar="PREFIX")
     optional.add_argument("-sn", "--seed_name", dest="seed_name",
@@ -87,25 +87,15 @@ def main():
                         help="If output file should be gzipped.", metavar="GZIP")
     optional.add_argument("-nh", "--neighborhood", dest="neighborhood",
                         help="number of neighborhood.", metavar="NEIGHBORHOOD")
-    optional.add_argument("-fr", "--feature_remove", dest="feature_remove",
-                        help="features to remove manually.", metavar="FEATURE_REMOVE")
-    optional.add_argument("-c", "--color", dest="color",
-                        help="tune of color pallette.", metavar="COLOR")
-    optional.add_argument("-lw", "--line_width", dest="line_width",
-                        help="width of line.", metavar="LINE_WIDTH")
-    optional.add_argument("-fs", "--feature_set", dest="feature_set",
-                        help="set of feature to use.", metavar="FEATURE_SET")
 
     args = parser.parse_args()
     args = vars(args)
     print(args)
 
-    feature_files = args['feature_files'].split(',')
-    for feature_file in feature_files:
-        if feature_file[-3:] != 'gct':
-            print('Feature files has to be in gct format.')
-            sys.exit(1)
-    
+    if args['feature_file'][-3:] != 'gct':
+        print('Feature file has to be in gct format.')
+        sys.exit(1)
+
     if args['target_file'][-3:] != 'gct':
         print('Target file has to be in gct format.')
         sys.exit(1)
@@ -119,14 +109,14 @@ def main():
     else:
         gmt_file = None
 
-    if args['seed_files'] != None:
-        if args['seed_files'][-3:] != 'gct':
+    if args['seed_file'] != None:
+        if args['seed_file'][-3:] != 'gct':
             print('Seed file has to be in gct format.')
             sys.exit(1)
         else:
-            seed_files = args['seed_files'].split(',')
+            seed_file = args['seed_file']
     else:
-        seed_files = args['feature_files'].split(',')
+        seed_file = args['feature_file']
 
     if args['prefix'] != None:
         prefix = args['prefix']
@@ -377,7 +367,7 @@ def main():
             with open(args['gene_set'],'r') as f:
                 gene_set = [line.rstrip() for line in f]
     else:
-        gene_set = None
+        gene_set = None    
 
 
     if args['alpha'] != None:
@@ -427,49 +417,12 @@ def main():
     else:
         neighborhood = 4
 
-    if args['feature_remove'] != None:
-        if args['feature_remove'][-3:] != 'txt':
-            feature_remove =  args['feature_remove'].split(',')
-        else:
-            with open(args['feature_remove'],'r') as f:
-                feature_remove = [line.rstrip() for line in f]
-    else:
-        feature_remove = None
-
-    if args['color'] != None:
-        if args['color'] not in ['black','blue']:
-            print('color should be black or blue')
-            sys.exit(1)
-        else:
-            color =  args['color']
-    else:
-        color = 'blue'
-
-    if args['line_width'] != None:
-        try:
-            linewidth = float(args['line_width'])
-        except ValueError:
-            print('line width has to be int or float')
-            sys.exit(1)
-    else:
-        linewidth = None
-
-    if args['feature_set'] != None:
-        if args['feature_set'][-3:] != 'txt':
-            feature_set =  args['feature_set'].split(',')
-        else:
-            with open(args['feature_set'],'r') as f:
-                feature_set = [line.rstrip() for line in f]
-    else:
-        feature_set = None
-
-
     if verbose > 0:
         print("""
 Parameters utilized:
 target_file="""+args['target_file']+"""
-feature_files="""+str(args['feature_files'].split(','))+"""
-seed_files="""+str(seed_files)+"""
+feature_file="""+args['feature_file']+"""
+seed_file="""+str(seed_file)+"""
 prefix="""+prefix+"""
 seed_name="""+str(seed_name)+"""
 grid="""+str(grid)+"""
@@ -499,8 +452,8 @@ gzip="""+str(gzip))
 
     #if grid_check == False:
     runREVEALER(target_file=args['target_file'], # gct file for target(continuous or binary)
-                    feature_files=feature_files, # gct file for features(binary)
-                    seed_files=seed_files, # file for seed, if not provided, feature file is used directly 
+                    feature_file=args['feature_file'], # gct file for features(binary)
+                    seed_file=seed_file, # file for seed, if not provided, feature file is used directly 
                     prefix=prefix, # prefix for result files 
                     seed_name=seed_name, # names for seed, should be a list of string indicating the name of seed
                     grid=grid, # number of grid, default is 34
@@ -532,11 +485,7 @@ gzip="""+str(gzip))
                     alpha = alpha,
                     tissue_file = tissue_file,
                     gzip = gzip,
-                    neighborhood = neighborhood,
-                    feature_remove = feature_remove,
-                    color = color,
-                    linewidth = linewidth,
-                    feature_set = feature_set
+                    neighborhood = neighborhood
                     )
     #else:
         # runCheckGrid(target_file=args['target_file'], # gct file for target(continuous or binary)

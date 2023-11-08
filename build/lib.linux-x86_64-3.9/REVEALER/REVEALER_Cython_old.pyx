@@ -20,8 +20,6 @@ from libc.math cimport exp, log, sqrt, M_PI, fabs, isnan, fmin, fmax, round, isn
 from libc.stdlib cimport rand, malloc, free, srand
 from libc.stdio cimport printf
 from cython.parallel import prange
-from scipy import stats
-
 
 cdef extern from "limits.h":
     int RAND_MAX
@@ -34,6 +32,7 @@ cdef struct density:
 cdef np.double_t DELMAX=1000
 
 import matplotlib.pyplot as plt
+import plotly.express as px
 from scipy.stats import norm
 import seaborn as sns
 from tqdm.notebook import tqdm
@@ -44,9 +43,6 @@ import warnings
 import pickle
 import random
 import os
-import tarfile
-
-plt.switch_backend('agg')
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -434,19 +430,16 @@ cpdef np.double_t binaryInformationCoefficient_cython(
     np.double_t bandwidth,      #Value of bandwidth
     np.double_t bandwidth_mult, #Multiplier of bandwidth
     np.double_t bandwidth_adj,  #Adjust of bandwidth
-    int neighborhood,           #Multiplication for bandwidth
-    np.double_t deltay,
-    np.double_t miny,
+    int grid,                   #Size of grid
     np.double_t jitter=1E-10    #jitter to be added
     ) nogil:
 
 
     """ Calculate IC between continuous 'y' and binary 'x' """
-    cdef np.double_t  cor, y_bandwidth, sigma_y, deltak
+    cdef np.double_t  miny, maxy, cor, y_bandwidth, sigma_y, 
     cdef np.double_t  term_2_pi_sigma_y, integral, mutual_information
-    cdef np.double_t  pX_0, pX_1, pysum, py0sum, py1sum, p_y_xsum
-    cdef int y_d, i, j, sumx, grid
-    cdef np.double_t* normy
+    cdef np.double_t  pX_0, pX_1, pysum, py0sum, py1sum
+    cdef int y_d, i, j, sumx
     cdef np.double_t* kernal
     cdef np.double_t* p_y_total
     cdef np.double_t* p_y_1
@@ -462,22 +455,13 @@ cpdef np.double_t binaryInformationCoefficient_cython(
     
     y_bandwidth = bandwidth * (bandwidth_mult * (1 + (bandwidth_adj) * fabs(cor)))
 
-    deltak = y_bandwidth * neighborhood
-    grid = <int>(round(deltay/deltak*k))
-    
-    if grid < 2*k+1:
-        grid = 2*k+1
-    
-    normy = <np.double_t*> malloc(size * sizeof(np.double_t))
-    for i in range(size):
-        normy[i] = (y[i] - miny) / deltay * (grid - 1)
-
     # Prepare grids
     p_y_total = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_y_0 = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_y_1 = <np.double_t*> malloc(grid * sizeof(np.double_t))
     
-    sigma_y = (grid * y_bandwidth) / deltay
+
+    sigma_y = y_bandwidth
     term_2_pi_sigma_y = 2.0 * M_PI * sigma_y
     kernel = <np.double_t*> malloc(2 * k * sizeof(np.double_t))
     i = 0
@@ -492,7 +476,7 @@ cpdef np.double_t binaryInformationCoefficient_cython(
     
     i = 0
     for i in range(size):
-        y_d = <int>(round(normy[i]))
+        y_d = <int>(round(y[i]))
         for j in range(2*k):
             index = y_d - k + j
             if index < 0:
@@ -506,45 +490,47 @@ cpdef np.double_t binaryInformationCoefficient_cython(
                 p_y_1[index] += kernel[j]
 
     pysum = 0.0
-    p_y_xsum = 0.0
+    py0sum = 0.0
+    py1sum = 0.0
     
+    i = 0
     for i in range(grid):
         p_y_total[i] = p_y_total[i] + EPS
         p_y_0[i] = p_y_0[i] + EPS
         p_y_1[i] = p_y_1[i] + EPS
         pysum += p_y_total[i]
-        p_y_xsum += p_y_0[i] +  p_y_1[i]
-
+        py0sum += p_y_0[i]
+        py1sum += p_y_1[i]
+    
+    i = 0
     for i in range(grid):
         p_y_total[i] = p_y_total[i]/pysum
-        p_y_0[i] = p_y_0[i]/p_y_xsum
-        p_y_1[i] = p_y_1[i]/p_y_xsum    
+        p_y_0[i] = p_y_0[i]/py0sum
+        p_y_1[i] = p_y_1[i]/py1sum
         
     mutual_information = 0
     
     pX_1 = <double>sumx/<double>size
     pX_0 = <double>(size-sumx)/<double>size
-
+    integral = 0.0
     mutual_information = 0.0
+    i = 0
+    for i in range(grid):
+        integral = integral + (p_y_0[i] * log(p_y_0[i]/p_y_total[i]))
+    mutual_information +=  pX_0 * integral
     
     integral = 0.0
-    for i in range(grid):    
-        integral = integral + (p_y_0[i] * log(p_y_0[i]/(p_y_total[i] * pX_0)))
-      
-    mutual_information +=  integral
-    
-    integral = 0.0    
-    for i in range(grid):    
-        integral = integral + (p_y_1[i] * log(p_y_1[i]/(p_y_total[i] * pX_1)))
-
-    mutual_information +=  integral
+    i = 0
+    for i in range(grid):
+        integral = integral + (p_y_1[i] * log(p_y_1[i]/p_y_total[i]))
+    mutual_information +=  pX_1 * integral
     
     free(p_y_total)
     free(p_y_0)
     free(p_y_1)
     free(kernel)
-    free(normy)
-
+    
+    
     return (cor/fabs(cor)) * sqrt(1.0 - exp(-2.0 * mutual_information))
 
 @cython.boundscheck(False)
@@ -560,20 +546,17 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
     np.double_t bandwidth,      #Value of bandwidth
     np.double_t bandwidth_mult, #Multiplier of bandwidth
     np.double_t bandwidth_adj,  #Adjust of bandwidth
-    int neighborhood,           #Multiplication for bandwidth
-    np.double_t deltay,
-    np.double_t miny,    
+    int grid,                   #Size of grid
     np.double_t jitter=1E-10    #jitter to be added
     ) nogil:
     """ 
     Calculate IC between continuous 'y' and binary 'x' given condition 'z' 
     """
 
-    cdef np.double_t  cor, sigma_y, term_2_pi_sigma_y, y_bandwidth, integral, deltak
-    cdef np.double_t  conditional_mutual_information, pX0Z0, pX0Z1, pX1Z0, pX1Z1, p_Z1, p_Z0
-    cdef np.double_t  pysum, pyx0z0sum, pyx0z1sum, pyx1z0sum ,pyx1z1sum ,pyz0sum ,pyz1sum, p_y_xsum, pyxzsum, pyxsum, pyzsum
+    cdef np.double_t  cor, sigma_y, term_2_pi_sigma_y, y_bandwidth, integral, 
+    cdef np.double_t  mutual_information, pX0Z0, pX0Z1, pX1Z0, pX1Z1
+    cdef np.double_t  pysum, pyx0z0sum, pyx0z1sum, pyx1z0sum ,pyx1z1sum ,pyz0sum ,pyz1sum
     cdef np.double_t* kernel
-    cdef np.double_t* normy
     cdef np.double_t* p_y_total
     cdef np.double_t* p_x0z0
     cdef np.double_t* p_x0z1
@@ -581,17 +564,15 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
     cdef np.double_t* p_x1z1
     cdef np.double_t* p_z0
     cdef np.double_t* p_z1
-    cdef np.double_t* p_x0
-    cdef np.double_t* p_x1
     cdef int* saver
-    cdef int y_d, i, j, sumx, x0z0Count, x1z0Count, x0z1Count, x1z1Count, grid,sumz
+    cdef int y_d, i, j, sumx, x0z0Count, x1z0Count, x0z1Count, x1z1Count
 
     cor = local_pearsonr(y, x, size)
     x0z0Count = 0
     x1z0Count = 0
     x0z1Count = 0
     x1z1Count = 0
-
+    
     i = 0
     for i in range(size):
         if x[i] == 0 and z[i] == 0:
@@ -602,11 +583,7 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
             x1z0Count += 1
         elif x[i] == 1 and z[i] == 1:
             x1z1Count += 1
-
-    sumz = 0
-    for i in range(size):
-        sumz += <int>z[i]
-
+    
     saver = <int*> malloc(4 * sizeof(int))
     for i in range(4):
         saver[i] = 0
@@ -620,20 +597,10 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
     if x1z1Count > 1:
         saver[3] = 1
 
-    y_bandwidth = bandwidth * (bandwidth_mult * (1 + (bandwidth_adj) * fabs(cor)))
-    deltak = y_bandwidth * neighborhood
-    grid = <int>(round(deltay/deltak*k))
-    #printf("grid is %.d\n",grid)
-    
-    if grid < 2*k+1:
-        grid = 2*k+1
-
     # Prepare grids
     p_y_total = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_z0 = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_z1 = <np.double_t*> malloc(grid * sizeof(np.double_t))
-    p_x0 = <np.double_t*> malloc(grid * sizeof(np.double_t))
-    p_x1 = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_x0z0 = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_x0z1 = <np.double_t*> malloc(grid * sizeof(np.double_t))
     p_x1z0 = <np.double_t*> malloc(grid * sizeof(np.double_t))
@@ -642,18 +609,13 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
         p_y_total[i] = 0.0
         p_z0[i] = 0.0
         p_z1[i] = 0.0
-        p_x0[i] = 0.0
-        p_x1[i] = 0.0
         p_x0z0[i] = 0.0
         p_x0z1[i] = 0.0
         p_x1z0[i] = 0.0
         p_x1z1[i] = 0.0
 
-    normy = <np.double_t*> malloc(size * sizeof(np.double_t))
-    for i in range(size):
-        normy[i] = (y[i] - miny) / deltay * (grid - 1)
-
-    sigma_y = (grid * y_bandwidth) / deltay
+    y_bandwidth = bandwidth * (bandwidth_mult * (1.0 + (bandwidth_adj) * fabs(cor)))
+    sigma_y = y_bandwidth
     term_2_pi_sigma_y = 2.0 * M_PI * sigma_y
     kernel = <np.double_t*> malloc(2 * k * sizeof(np.double_t))                          
     
@@ -663,7 +625,7 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
 
     i = 0
     for i in range(size):
-        y_d = <int>(round(normy[i]))
+        y_d = <int>(round(y[i]))
         for j in range(2*k):
             index = y_d - k + j
             if index < 0:
@@ -674,24 +636,18 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
             if 0 == x[i] and 0 == z[i] and saver[0] == 1:
                 p_x0z0[index] += kernel[j]
                 p_z0[index] += kernel[j]
-                p_x0[index] += kernel[j]
             elif 0 == x[i] and 1 == z[i] and saver[1] == 1:
                 p_x0z1[index] += kernel[j]
                 p_z1[index] += kernel[j]
-                p_x0[index] += kernel[j]
             elif 1 == x[i] and 0 == z[i] and saver[2] == 1:
                 p_x1z0[index] += kernel[j]
                 p_z0[index] += kernel[j]
-                p_x1[index] += kernel[j]
             elif 1 == x[i] and 1 == z[i] and saver[3] == 1:
                 p_x1z1[index] += kernel[j]
                 p_z1[index] += kernel[j]
-                p_x1[index] += kernel[j]
 
-    pZ_1 = <double>sumz/<double>size
-    pZ_0 = <double>(size - sumz)/<double>size
-    conditional_mutual_information = 0.0
-
+    mutual_information = 0.0
+                
     pysum = 0.0
     pyx0z0sum = 0.0
     pyx0z1sum = 0.0
@@ -699,116 +655,100 @@ cpdef np.double_t ConditionalInformationCoefficient_cython(
     pyx1z1sum = 0.0
     pyz0sum = 0.0
     pyz1sum = 0.0
-    p_y_zsum = 0.0
-    pyxsum = 0.0
-    pyzsum = 0.0
-    pyxzsum = 0.0
 
+    
     i = 0
     for i in range(grid):
         p_y_total[i] = p_y_total[i] + EPS
-        pysum += p_y_total[i]
-
-        p_x0[i] = p_x0[i] + EPS
-        p_x1[i] = p_x1[i] + EPS
-        pyxsum += p_x0[i] + p_x1[i]
-
         p_z0[i] = p_z0[i] + EPS
         p_z1[i] = p_z1[i] + EPS
-        pyzsum += p_z0[i] + p_z1[i]
-        if saver[0] != 0:
-            p_x0z0[i] = p_x0z0[i] + EPS
-            pyxzsum += p_x0z0[i]
-        if saver[1] != 0:
-            p_x0z1[i] = p_x0z1[i] + EPS
-            pyxzsum += p_x0z1[i]
-        if saver[2] != 0:
-            p_x1z0[i] = p_x1z0[i] + EPS
-            pyxzsum += p_x1z0[i]
-        if saver[3] != 0:
-            p_x1z1[i] = p_x1z1[i] + EPS
-            pyxzsum += p_x1z1[i]        
-
-
-        #pyxzsum += p_x0z0[i] + p_x0z1[i] + p_x1z0[i] + p_x1z1[i]
-
+        pysum += p_y_total[i]
+        pyz0sum += p_z0[i]
+        pyz1sum += p_z1[i]
+    
     i = 0
     for i in range(grid):
         p_y_total[i] = p_y_total[i]/pysum
-        p_z0[i] = p_z0[i]/pyxzsum 
-        p_z1[i] = p_z1[i]/pyxzsum 
-        p_x0[i] = p_x0[i]/pyxzsum 
-        p_x1[i] = p_x1[i]/pyxzsum 
-
+        p_z0[i] = p_z0[i]/pyz0sum 
+        p_z1[i] = p_z1[i]/pyz1sum 
+    
     if saver[0] != 0:
         i = 0
         for i in range(grid):
-            p_x0z0[i] = p_x0z0[i]/pyxzsum
+            p_x0z0[i] = p_x0z0[i] + EPS
+            pyx0z0sum += p_x0z0[i]
+        i = 0
+        for i in range(grid):
+            p_x0z0[i] = p_x0z0[i]/pyx0z0sum
         pX0Z0 = <double>x0z0Count/<double>size
         integral = 0.0
         i = 0
         for i in range(grid):
-            integral = integral + (p_x0z0[i] * log((p_x0z0[i] * pZ_0)/(p_z0[i] * pX0Z0)))
-            
-        conditional_mutual_information += integral
-
+            integral = integral + (p_x0z0[i] * log(p_x0z0[i]/p_z0[i]))
+        mutual_information +=  pX0Z0 * integral
+        
     if saver[1] != 0:
         i = 0
         for i in range(grid):
-            p_x0z1[i] = p_x0z1[i]/pyxzsum
-
+            p_x0z1[i] = p_x0z1[i] + EPS
+            pyx0z1sum += p_x0z1[i]
+        i = 0
+        for i in range(grid):
+            p_x0z1[i] = p_x0z1[i]/pyx0z1sum
         pX0Z1 = <double>x0z1Count/<double>size
         integral = 0.0
         i = 0
         for i in range(grid):
-            integral = integral + (p_x0z1[i] * log((p_x0z1[i] * pZ_1)/(p_z1[i] * pX0Z1)))
-
-        conditional_mutual_information += integral
-
+            integral = integral + (p_x0z1[i] * log(p_x0z1[i]/p_z1[i]))
+        mutual_information +=  pX0Z1 * integral
+        
     if saver[2] != 0:
         i = 0
         for i in range(grid):
-            p_x1z0[i] = p_x1z0[i]/pyxzsum
-
+            p_x1z0[i] = p_x1z0[i] + EPS
+            pyx1z0sum += p_x1z0[i]
+        i = 0
+        for i in range(grid):
+            p_x1z0[i] = p_x1z0[i]/pyx1z0sum
         pX1Z0 = <double>x1z0Count/<double>size
         integral = 0.0
         i = 0
         for i in range(grid):
-            integral = integral + (p_x1z0[i] * log((p_x1z0[i] * pZ_0)/(p_z0[i] * pX1Z0)))
-        conditional_mutual_information += integral
-
+            integral = integral + (p_x1z0[i] * log(p_x1z0[i]/p_z0[i]))
+        mutual_information +=  pX1Z0 * integral
+        
     if saver[3] != 0:
         i = 0
         for i in range(grid):
-            p_x1z1[i] = p_x1z1[i]/pyxzsum
-
+            p_x1z1[i] = p_x1z1[i] + EPS
+            pyx1z1sum += p_x1z1[i]
+        i = 0
+        for i in range(grid):
+            p_x1z1[i] = p_x1z1[i]/pyx1z1sum
         pX1Z1 = <double>x1z1Count/<double>size
         integral = 0.0
         i = 0
         for i in range(grid):
-            integral = integral + (p_x1z1[i] * log((p_x1z1[i] * pZ_1)/(p_z1[i] * pX1Z1)))
-        conditional_mutual_information += integral
+            integral = integral + (p_x1z1[i] * log(p_x1z1[i]/p_z1[i]))
+        mutual_information +=  pX1Z1 * integral
         
     free(p_y_total)
     free(p_z0)
     free(p_z1)
-    free(p_x0)
-    free(p_x1)
     free(p_x0z0)
     free(p_x0z1)
     free(p_x1z0)
     free(p_x1z1)
     free(kernel)
     free(saver)
-    free(normy)
-
-    return (cor/fabs(cor)) * sqrt(1.0 - exp(-2.0 * conditional_mutual_information))
+    
+    return (cor/fabs(cor)) * sqrt(1.0 - exp(-2.0 * mutual_information))
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
 @cython.initializedcheck(False)
-cpdef (np.int_t,np.double_t,np.double_t) findBestCIC(
+cpdef (np.int_t,np.double_t) findBestCIC(
     np.double_t[:] y_in,        #Target
     np.int_t[:] z_in,           #Feature that CIC depend on
     np.int_t[:,:] xs_in,        #List of features
@@ -820,8 +760,7 @@ cpdef (np.int_t,np.double_t,np.double_t) findBestCIC(
     np.double_t bandwidth_adj,  #Adjust of bandwidth
     direction,                  #Direction that feature should match with target
     int grid,                   #Size of grid
-    int thread_number,          #Number of thread
-    int neighborhood
+    int thread_number           #Number of thread
     ):
 
     '''
@@ -835,15 +774,10 @@ cpdef (np.int_t,np.double_t,np.double_t) findBestCIC(
     cdef int i
     cdef int maxseedid = 0
     cdef np.double_t maxCIC = 0.0
-    cdef np.double_t miny = findmin(y, size)
-    cdef np.double_t deltay = findmax(y, size) - findmin(y, size)
-    cdef np.double_t substart = time.time()
-
     for i in prange(n, nogil=True,num_threads=thread_number):       
         res[i] = ConditionalInformationCoefficient_cython(y, x[i,:], z, k, size, bandwidth, 
-                                                          bandwidth_mult, bandwidth_adj, 
-                                                          neighborhood, deltay, miny)
-    cdef np.double_t spenttime = time.time() - substart
+                                                          bandwidth_mult, bandwidth_adj, grid)
+        
     i = 0
     
     if direction == 'neg':
@@ -859,7 +793,7 @@ cpdef (np.int_t,np.double_t,np.double_t) findBestCIC(
                 maxCIC = res[i]
                 maxseedid = i + 1
                 
-    return maxseedid,maxCIC,spenttime
+    return maxseedid,maxCIC
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -876,8 +810,7 @@ cpdef np.double_t[:] rankCIC(
     np.double_t bandwidth_mult, #Multiplier of bandwidth
     np.double_t bandwidth_adj,  #Adjust of bandwidth
     int grid,                   #Size of grid
-    int thread_number,          #Number of thread
-    int neighborhood
+    int thread_number           #Number of thread
     ):
 
     '''
@@ -889,13 +822,11 @@ cpdef np.double_t[:] rankCIC(
     cdef np.double_t[:] y = np.asarray(y_in)
     cdef np.int_t[:,:] x = np.asarray(xs_in)
     cdef np.int_t[:] z = np.asarray(z_in)
-    cdef np.double_t miny = findmin(y, size)
-    cdef np.double_t deltay = findmax(y, size) - findmin(y, size)
-
-    for i in prange(n, nogil=True,num_threads=thread_number):       
-        res[i] = ConditionalInformationCoefficient_cython(y, x[i,:], z, k, size, bandwidth, 
-                                                          bandwidth_mult, bandwidth_adj, 
-                                                          neighborhood, deltay, miny)
+    
+    for i in prange(n, nogil=True,num_threads=thread_number):
+        res[i] = ConditionalInformationCoefficient_cython(y, x[i,:], z, k, size, bandwidth,
+                                                          bandwidth_mult, bandwidth_adj, grid)
+    i = 0
     return res
 
 @cython.boundscheck(False)
@@ -912,8 +843,7 @@ cpdef (np.int_t,np.double_t) findBestIC(
     np.double_t bandwidth_adj,  #Adjust of bandwidth
     direction,                  #Direction that feature should match with target
     int grid,                   #Size of grid
-    int thread_number,          #Number of thread
-    int neighborhood
+    int thread_number           #Number of thread
     ):
 
     '''
@@ -927,12 +857,10 @@ cpdef (np.int_t,np.double_t) findBestIC(
     cdef int i
     cdef int maxseedid = 0
     cdef np.double_t maxCIC = 0.0
-    cdef np.double_t miny = findmin(y, size)
-    cdef np.double_t deltay = findmax(y, size) - findmin(y, size)
     
     for i in prange(n, nogil=True,num_threads=thread_number):
         res[i] = binaryInformationCoefficient_cython(y, x[i,:],k,size, bandwidth,bandwidth_mult,
-                                                     bandwidth_adj, neighborhood, deltay, miny)
+                                                     bandwidth_adj,grid)
         
     i = 0
     
@@ -964,8 +892,7 @@ cpdef np.double_t[:] rankIC(
     np.double_t bandwidth_mult, #Multiplier of bandwidth
     np.double_t bandwidth_adj,  #Adjust of bandwidth
     int grid,                   #Size of grid
-    int thread_number,          #Number of thread
-    int neighborhood
+    int thread_number           #Number of thread
     ):
 
     '''
@@ -976,13 +903,10 @@ cpdef np.double_t[:] rankIC(
     cdef np.double_t[:] y = np.asarray(y_in)
     cdef np.int_t[:,:] x = np.asarray(xs_in)
     cdef int i
-    cdef np.double_t miny = findmin(y, size)
-    cdef np.double_t deltay = findmax(y, size) - findmin(y, size)
-    
-    for i in prange(n, nogil=True,num_threads=thread_number):
-        res[i] = binaryInformationCoefficient_cython(y, x[i,:],k,size, bandwidth,bandwidth_mult,
-                                                     bandwidth_adj, neighborhood, deltay, miny)
-        
+    for i in prange(n, nogil=True,num_threads=thread_number):       
+        res[i] = binaryInformationCoefficient_cython(y, x[i,:],k,size, bandwidth,
+                                                     bandwidth_mult,bandwidth_adj,grid)
+
     return res
 
 def drawTarget(
@@ -1079,8 +1003,7 @@ cpdef topmatch(
     seed_name,      #List of seed names
     target_name,    #Name of target
     gmt,
-    locusdic,
-    neighborhood
+    locusdic
     ):
 
     '''
@@ -1090,25 +1013,20 @@ cpdef topmatch(
     CICs = []
     pVals = []
     bootstraps = []
-    cdef np.double_t miny = findmin(y, size)
-    cdef np.double_t deltay = findmax(y, size) - findmin(y, size)
-    
     if ifSeed == True:
         cythonseed = np.asarray(currentseed).astype(int)
         rank = topMatches(comb=comb, y=y, grid=grid, k=k, size=size, bandwidth=bandwidth,
                           bandwidth_mult=bandwidth_mult, bandwidth_adj=bandwidth_adj,
-                          thread_number=thread_number, neighborhood = neighborhood,seed=cythonseed)
-
-        IC = binaryInformationCoefficient_cython(y, cythonseed, k, size, bandwidth, bandwidth_mult,
-                                                     bandwidth_adj, neighborhood, deltay, miny)
-
+                          thread_number=thread_number, seed=cythonseed)
+        IC = binaryInformationCoefficient_cython(y, cythonseed,k,size,bandwidth,
+                                             bandwidth_mult,bandwidth_adj,grid = grid)
         CICs.append(IC)
         if if_bootstrap == True:
             bootstrap = calcBootstrapIC(subcomb = pd.DataFrame([comb.iloc[0].tolist(),currentseed]),
                                         size = size, bandwidth = bandwidth, k = k, 
                                         bandwidth_mult = bandwidth_mult, 
                                         bandwidth_adj = bandwidth_adj, grid = grid, 
-                                        thread_number = thread_number, IC = IC, neighborhood = neighborhood)
+                                        thread_number = thread_number, IC = IC)
             bootstraps.append(bootstrap)
 
         if if_pval == True:
@@ -1116,7 +1034,7 @@ cpdef topmatch(
                                         size = size, bandwidth = bandwidth, k = k, 
                                         bandwidth_mult = bandwidth_mult, 
                                         bandwidth_adj = bandwidth_adj, grid = grid, 
-                                        thread_number =thread_number, IC = IC, neighborhood = neighborhood)
+                                        thread_number =thread_number, IC = IC)
             pVals.append(pVal)
 
     else:
@@ -1124,7 +1042,7 @@ cpdef topmatch(
         cythonseed = np.asarray(currentseed).astype(int)
         rank = topMatches(comb=comb,y = y,grid=grid,k=k,size = size,bandwidth = bandwidth,
                           bandwidth_mult=bandwidth_mult,bandwidth_adj=bandwidth_adj,
-                          thread_number=thread_number, neighborhood = neighborhood)
+                          thread_number=thread_number)
         CICs.append('')
         if if_bootstrap == True:
             bootstraps.append('')
@@ -1159,7 +1077,7 @@ cpdef topmatch(
             results = prepPvalCIC(comb = comb, cythonseed = cythonseed, size = size, 
                                   bandwidth = bandwidth, k = k, bandwidth_mult = bandwidth_mult, 
                                   bandwidth_adj = bandwidth_adj, grid = grid, 
-                                  thread_number =thread_number, neighborhood = neighborhood)
+                                  thread_number =thread_number)
             for i in range(1,len(rankfeature.index.tolist())):
                 if i != 1 and CICs[i] == CICs[i-1]:
                     pVals.append(pVals[-1])
@@ -1177,15 +1095,14 @@ cpdef topmatch(
                                               bandwidth = bandwidth, k = k, 
                                               bandwidth_mult = bandwidth_mult, 
                                               bandwidth_adj = bandwidth_adj, grid = grid,
-                                              thread_number = thread_number, IC = IC, 
-                                              neighborhood = neighborhood)
+                                              thread_number = thread_number, IC = IC)
                     bootstraps.append(bootstrap)
     else:
         if if_pval==True:
             results = prepPvalIC(comb = comb, size = size, 
                                  bandwidth = bandwidth, k = k, bandwidth_mult = bandwidth_mult, 
                                  bandwidth_adj = bandwidth_adj, grid = grid,
-                                 thread_number = thread_number, neighborhood = neighborhood)
+                                 thread_number = thread_number)
             for i in range(1,len(rankfeature.index.tolist())):
                 if i != 1 and CICs[i] == CICs[i-1]:
                     pVals.append(pVals[-1])
@@ -1203,7 +1120,7 @@ cpdef topmatch(
                                                 bandwidth_mult = bandwidth_mult, 
                                                 bandwidth_adj = bandwidth_adj, 
                                                 grid = grid, thread_number = thread_number, 
-                                                IC = CICs[i], neighborhood = neighborhood)
+                                                IC = CICs[i])
                     bootstraps.append(bootstrap)
 
     savetopfig(plotcomb = rankfeature.copy(), CICs = CICs, cythonseed = cythonseed, 
@@ -1259,10 +1176,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
                   gene_set=None,
                   gene_separator='_',
                   gmt_file = None,
-                  alpha = 1,
-                  neighborhood = 4,
-                  tissue_file = None,
-                  gzip = True
+                  alpha = 1
                  ):
     
     report = ''
@@ -1279,6 +1193,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
     
+    
     start = time.time()
     if (isinstance(target_df,str) or isinstance(feature_df,str)) and \
        (target_file == 'no' or feature_file == 'no') :
@@ -1288,9 +1203,9 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
             print('Indicated Core Number exceed maximum available core. All core is used')
         thread_number = mp.cpu_count()
     if thread_number == -1:
-        thread_number = mp.cpu_count()
         if verbose != 0:
-            print('All core('+str(thread_number)+') Used')
+            print('All core Used')
+        thread_number = mp.cpu_count()
     report = report + 'Number of thread used: ' + str(thread_number) + '\n'
     
     if seed_file == 'no':
@@ -1298,11 +1213,10 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
     if isinstance(feature_df,str):
         comb,locusdic = readInput(target_file = target_file, feature_file = feature_file, 
                          seed_file = seed_file, seed_name = seed_name, target_name = target_name,
-                         direction = direction, gene_locus = gene_locus,
+                         direction = direction, gene_locus = gene_locus, normalize = normalize,
                          low_threshold = low_threshold, high_threshold = high_threshold,
-                         subset = subset, gene_set = gene_set, 
-                         gene_separator = gene_separator, thread_number = thread_number,
-                         tissue_file = tissue_file)
+                         grid = grid, subset = subset, gene_set = gene_set, 
+                         gene_separator = gene_separator, thread_number = thread_number)
     else:
         comb = pd.concat([target_df,seed_df,feature_df], join='inner')
         rmrow=[]
@@ -1349,10 +1263,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
                                                            report = report,
                                                            gmt = gmt,
                                                            locusdic = locusdic,
-                                                           alpha = alpha,
-                                                           neighborhood = neighborhood,
-                                                           tissue_file = tissue_file,
-                                                           gzip = gzip)
+                                                           alpha = alpha)
         
     elif mode == 'single':
         target_df, seed_df, featuresdf = REVEALERInner(prefix = prefix, comb = comb, grid = grid, 
@@ -1374,10 +1285,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
                                                        report = report,
                                                        gmt = gmt,
                                                        locusdic = locusdic,
-                                                       alpha = alpha,
-                                                       neighborhood = neighborhood,
-                                                       tissue_file = tissue_file,
-                                                       gzip = gzip)
+                                                       alpha = alpha)
         
     return target_df, seed_df, featuresdf
 
@@ -1408,10 +1316,7 @@ cpdef REVEALERInner(
     report,
     gmt,
     locusdic,
-    alpha,
-    neighborhood,
-    tissue_file,
-    gzip
+    alpha
     ):
 
     seedcmap = clr.LinearSegmentedColormap.from_list('custom greys', [(.9,.9,.9),(0.5,0.5,0.5)], 
@@ -1422,39 +1327,21 @@ cpdef REVEALERInner(
                                                         <double>(222)/<double>(255)),
                                                         (0,0,<double>(139)/<double>(255))], N=256)
 
+    
+    if normalize == 'standard':
+        target = comb.iloc[0].tolist()
+        targetmean = np.mean(target)
+        targetstd = np.std(target)
+        comb.iloc[0] = (target - targetmean)/targetstd
+    elif normalize == 'zerobase':
+        target = np.array(comb.iloc[0].tolist())
+        comb.iloc[0] = ((target - min(target)) / (max(target) - min(target))) * grid
 
     newpheno = []
-    target = comb.iloc[0].tolist()
-    targetmean = np.mean(target)
-    targetstd = np.std(target)
-    comb.iloc[0] = (target - targetmean)/targetstd
     for i in comb.iloc[0].tolist():
         newpheno.append(np.sign(i)*(abs(i)**alpha))
     comb.iloc[0] = newpheno
     
-    if tissue_file:
-        patient = pd.read_csv(tissue_file,skiprows=[0,1],sep='\t',index_col=0)
-        patient = patient.drop(columns=patient.columns[0])
-        patient.columns = patient.columns.str.replace("-", "_")
-        patient = patient[comb.columns]
-        combpatient = pd.concat([comb.iloc[[0]],patient])
-        corr = []
-        for i in combpatient.index.tolist()[1:]:
-            if combpatient.loc[i].sum() == 0:
-                corr.append(-100)
-            else:
-                corr.append(stats.pearsonr(combpatient.iloc[0],combpatient.loc[i])[0])
-        combpatient['corr'] = [1]+corr
-        combpatient = combpatient.sort_values('corr',ascending=False).drop(columns= ['corr'])
-
-        patientfig(df = combpatient, seedcmap = seedcmap, featurecmap = featurecmap, 
-                   prefix = prefix, figure_format = figure_format, out_folder = out_folder, 
-                   target_name = target_name)
-
-    plt.plot(comb.iloc[0].tolist())
-    plt.savefig(out_folder + prefix+'_PhenotypeDistribution.'+figure_format,format=figure_format)
-    plt.close()
-
     if verbose != 0:
         if seed_name != None:
             print("Number of features that pass the threshold is: "+str(len(comb.index)-2))
@@ -1466,18 +1353,12 @@ cpdef REVEALERInner(
     else:
         report = report + 'Number of features passing threshold is: ' + str(len(comb.index)-1)+'\n'
     
-    if verbose != 0:
-        print('Number of samples is: ' + str(len(comb.columns)-1)+'\n')
-
-    report = report + 'Number of samples is: ' + str(len(comb.columns)-1)+'\n'
 
     start= time.time()
     cdef int size = len(comb.iloc[0])
     cdef np.double_t[:] y = np.ascontiguousarray(np.asarray(comb.iloc[0].tolist()))
-    cdef np.double_t miny = findmin(y, size)
-    cdef np.double_t deltay = findmax(y, size) - findmin(y, size)
     i = 0
-    cdef np.double_t bandwidth = calc_bandwidth(y,size)/2
+    cdef np.double_t bandwidth = calc_bandwidth(y,size)                                    
                                                 
     cdef np.int_t[:] cythonseed
     
@@ -1507,12 +1388,12 @@ cpdef REVEALERInner(
             print('seed Search...')
         seedid,IC = findBestIC(y, np.array(comb.iloc[1:].values.astype(int).tolist()),
                              k, int(len(comb.index)-1), size, bandwidth,
-                             bandwidth_mult, bandwidth_adj, direction,grid,thread_number, neighborhood)
+                             bandwidth_mult, bandwidth_adj, direction,grid,thread_number)
         if if_pval == True:
             pVals.append('')
             results = prepPvalIC(comb = comb, size = size, bandwidth = bandwidth, k = k, 
                                  bandwidth_mult = bandwidth_mult, bandwidth_adj = bandwidth_adj, 
-                                 grid = grid, thread_number = thread_number, neighborhood = neighborhood)
+                                 grid = grid, thread_number = thread_number)
             pVal = calcPvalIC(results = results, IC = IC, direction = direction)
             pVals.append(pVal)
             pVals.append(pVal)
@@ -1523,7 +1404,7 @@ cpdef REVEALERInner(
                                         bandwidth = bandwidth, k = k, 
                                         bandwidth_mult = bandwidth_mult, 
                                         bandwidth_adj = bandwidth_adj, grid = grid,
-                                        thread_number = thread_number,IC = IC, neighborhood = neighborhood)
+                                        thread_number = thread_number,IC = IC)
             bootstraps.append(bootstrap)
             bootstraps.append(bootstrap)
 
@@ -1538,8 +1419,7 @@ cpdef REVEALERInner(
                      figure_format = figure_format, ifSeed = False, if_pval = if_pval, 
                      if_bootstrap = if_bootstrap, if_cluster = if_cluster, collapse = collapse, 
                      seedcmap = seedcmap, featurecmap = featurecmap, nitr = 0, gmt = gmt,
-                     out_folder = out_folder, seed_name = seed_name, target_name = target_name, 
-                     neighborhood = neighborhood)
+                     out_folder = out_folder, seed_name = seed_name, target_name = target_name)
         
         currentseed = comb.iloc[seedid].tolist()
         seedlists.append(currentseed)
@@ -1554,13 +1434,13 @@ cpdef REVEALERInner(
         seedlists.append(currentseed)
         cythonseed = np.asarray(currentseed).astype(int)
         IC = binaryInformationCoefficient_cython(y, cythonseed,k,size,bandwidth,
-                                                 bandwidth_mult,bandwidth_adj, neighborhood, deltay, miny)
+                                                 bandwidth_mult,bandwidth_adj,grid = grid)
         if if_bootstrap == True:
             bootstrap = calcBootstrapIC(subcomb = pd.DataFrame([comb.iloc[0].tolist(),currentseed]), 
                                         size = size, bandwidth = bandwidth, k = k, 
                                         bandwidth_mult = bandwidth_mult, 
                                         bandwidth_adj = bandwidth_adj, grid = grid, 
-                                        thread_number = thread_number, IC = IC, neighborhood = neighborhood)
+                                        thread_number = thread_number, IC = IC)
             bootstraps.append(bootstrap)
         if if_pval == True:
             subcomb = comb.copy()
@@ -1569,7 +1449,7 @@ cpdef REVEALERInner(
                                         size = size, bandwidth = bandwidth, k = k, 
                                         bandwidth_mult = bandwidth_mult, 
                                         bandwidth_adj = bandwidth_adj, grid = grid,
-                                        thread_number = thread_number,IC = IC, neighborhood = neighborhood)
+                                        thread_number = thread_number,IC = IC)
             pVals.append(pVal)
 
         CICs.append(IC)
@@ -1579,23 +1459,14 @@ cpdef REVEALERInner(
     
     n=1
     while (max_iteration == -1 or n <= max_iteration) and (len(comb.index.tolist()) > 1):
+        substart = time.time()
         
         if verbose != 0:
             print("Iteration" + str(n) + ':')
         cythonseed = np.asarray(currentseed).astype(int)
-        #substart = time.time()
-        seedid,CIC,spenttime = findBestCIC(y, cythonseed, np.array(comb.iloc[1:].values.astype(int).tolist()),
+        seedid,CIC = findBestCIC(y, cythonseed, np.array(comb.iloc[1:].values.astype(int).tolist()),
                          k, int(len(comb.index)-1), size, bandwidth,
-                         bandwidth_mult, bandwidth_adj, direction, grid,thread_number, neighborhood)
-        
-#         if verbose != 0:
-#             print('Time used to run one loop: %s second(s)'%(int(time.time() - substart)))
-#         report = report + 'Time used to run one loop: %s second(s)'%(int(time.time() - substart)) + '\n'
-        
-        if verbose != 0:
-            print('Time used to run one loop: %s second(s)'%(int(spenttime)))
-        report = report + 'Time used to run one loop: %s second(s)'%(int(spenttime)) + '\n'
-        
+                         bandwidth_mult, bandwidth_adj, direction, grid,thread_number)
         newseed = comb.iloc[seedid].tolist()
         
         if if_intermediate == True:
@@ -1606,8 +1477,7 @@ cpdef REVEALERInner(
                      figure_format = figure_format, ifSeed = True, if_pval=if_pval, 
                      if_bootstrap=if_bootstrap, if_cluster=if_cluster, collapse = collapse, 
                      seedcmap = seedcmap, featurecmap = featurecmap, nitr = n, gmt = gmt,
-                     out_folder = out_folder, seed_name = seed_name, target_name = target_name,
-                     neighborhood = neighborhood)  
+                     out_folder = out_folder, seed_name = seed_name, target_name = target_name)  
         
         currentseed = seedCombine(currentseed,newseed)
         seedids.append(comb.index[seedid])
@@ -1617,7 +1487,7 @@ cpdef REVEALERInner(
             results = prepPvalCIC(comb = comb, cythonseed = cythonseed, size = size, 
                                   bandwidth = bandwidth, k = k, bandwidth_mult = bandwidth_mult, 
                                   bandwidth_adj = bandwidth_adj, grid = grid,
-                                  thread_number =thread_number, neighborhood = neighborhood)
+                                  thread_number =thread_number)
             pVals.append(calcPvalCIC(results = results, IC = CIC, direction = direction))
                                         
         if if_bootstrap == True:
@@ -1625,7 +1495,7 @@ cpdef REVEALERInner(
                                       size = size, bandwidth = bandwidth, k = k, 
                                       bandwidth_mult = bandwidth_mult, 
                                       bandwidth_adj = bandwidth_adj, grid = grid,
-                                      thread_number = thread_number, IC = IC, neighborhood = neighborhood)
+                                      thread_number = thread_number, IC = IC)
             bootstraps.append(bootstrap)
             
   
@@ -1638,13 +1508,13 @@ cpdef REVEALERInner(
         report = report + "CIC calculated in this round is: " + str(CIC) + '\n'
         report = report + "Best feature choosen in this round is: "+comb.index[seedid] + '\n'
         newIC = binaryInformationCoefficient_cython(y, cythonseed,k,size,bandwidth,
-                                                    bandwidth_mult,bandwidth_adj, neighborhood, deltay, miny)
+                                                    bandwidth_mult,bandwidth_adj,grid)
         if if_bootstrap == True:
             bootstrap = calcBootstrapIC(subcomb = pd.DataFrame([comb.iloc[0].tolist(),currentseed]), 
                                         size = size, bandwidth = bandwidth, k = k, 
                                         bandwidth_mult = bandwidth_mult, 
                                         bandwidth_adj = bandwidth_adj, grid = grid,
-                                        thread_number =thread_number, IC = newIC, neighborhood = neighborhood)
+                                        thread_number =thread_number, IC = newIC)
             bootstraps.append(bootstrap)
 
         if if_pval == True:
@@ -1656,7 +1526,9 @@ cpdef REVEALERInner(
         seedIC.append(newIC)
         CICs.append(newIC)
         comb = comb.drop(index = [comb.index[seedid]])
-        
+        if verbose != 0:
+            print('Time used to run one loop: %s second(s)'%(int(time.time() - substart)))
+        report = report + 'Time used to run one loop: %s second(s)'%(int(time.time() - substart)) + '\n'
 
         if max_iteration == -1:
             if direction == 'pos':
@@ -1685,7 +1557,7 @@ cpdef REVEALERInner(
                           target = comb.iloc[0].tolist(), size = size, bandwidth = bandwidth, k = k, 
                           bandwidth_mult = bandwidth_mult, bandwidth_adj = bandwidth_adj, 
                           grid = grid, thread_number =thread_number, seed_name = seed_name,
-                          direction = direction, neighborhood = neighborhood)
+                          direction = direction)
     if if_pval == True:
         saveresfigWithPval(savecomb, seedids, CICs, seedlists, seedcmap, featurecmap, prefix,
                            figure_format, pVals, bootstraps, out_folder, target_name, seed_name,
@@ -1700,10 +1572,6 @@ cpdef REVEALERInner(
 
     with open(out_folder + prefix + 'report.txt','w') as f:
         f.write(report)
-
-    if gzip == True:
-        with tarfile.open(prefix+'.tar.gz', "w:gz") as tar:
-            tar.add(out_folder, arcname=os.path.basename(out_folder))
 
     if seed_name == None:
         return savecomb.iloc[[0]], None, savecomb.iloc[1:]
@@ -1723,8 +1591,7 @@ cpdef updatePval(
     grid,           #Size of grid
     thread_number,  #Number of thread
     seed_name,      #List of seed name
-    direction,      #Direction that feature should match with target
-    neighborhood
+    direction       #Direction that feature should match with target
     ):
     
     '''
@@ -1739,7 +1606,7 @@ cpdef updatePval(
 
     #Calculate ICs using seeds
     results = prepPvalICInd(seedcomb, target, size, bandwidth, k, bandwidth_mult,bandwidth_adj, 
-                            grid, thread_number, neighborhood)
+                            grid, thread_number)
 
     #Calculate each pVals based on CIC/IC at that position
     if direction == 'pos':
@@ -1787,54 +1654,6 @@ cpdef updatePval(
                 
     return pVals
 
-def patientfig(
-    df,       #Dataframe used to plot 
-    seedcmap,       #Cmap for seed heatmap
-    featurecmap,    #Cmap for feature heatmap
-    prefix,         #Prefix for file generated
-    figure_format,  #Format for result figure
-    out_folder,     #Name of output folder
-    target_name
-    ):
-
-    '''
-    Function to save result summary figure without p-values. 
-    '''
-
-    fig = plt.figure()
-    fig.set_figheight(len(df.index)/2+0.5)
-    fig.set_figwidth(11)
-    
-    #Target name at left of target heatmap
-    ax = plt.subplot2grid(shape=(5*(len(df.index)+1),110), loc=(0, 0), colspan=20,rowspan=5)
-    ax.set_axis_off()
-    ax.text(0.9,0.5, 'Target:'+str(target_name), ha='right', va='center')
-
-    #Plot heatmap for target
-    ax = plt.subplot2grid(shape=(5*(len(df.index)+1),110), loc=(0, 20), colspan=90,rowspan=5)
-    ax = sns.heatmap(df.iloc[[0]].to_numpy(), cmap='bwr', annot=False, yticklabels=False,
-                     xticklabels=False, cbar=False, center=df.iloc[0].mean())
-
-    #Loop to plot best feature and new seeds.
-    for i in range(1,len(df.index)):
-
-        #Label name of picked feature in this round
-        ax = plt.subplot2grid(shape=(5*(len(df.index)+1),110), loc=(((i))*5, 0), 
-                              colspan=20,rowspan=5)
-        ax.set_axis_off()
-        ax.text(0.9,0.5,df.index.tolist()[i] + '(' + str(df.iloc[i].tolist().count(1)) + ')', ha='right', va='center')
-
-        #Plot heatmap for best feature
-        ax = plt.subplot2grid(shape=(5*(len(df.index)+1),110), loc=(((i))*5, 20), 
-                              colspan=90,rowspan=5)
-        ax = sns.heatmap(np.asarray([df.iloc[i].tolist()]).astype(int),
-                         cmap=featurecmap, annot=False, yticklabels=False, xticklabels=False, cbar=False)
-
-    #Save figure 
-    plt.savefig(out_folder + prefix+'_tissueType.'+figure_format,format=figure_format)
-    plt.close()
-
-
 cpdef prepPvalICInd(
     seedcomb,       #Combined dataframe
     target,         #target to be compared
@@ -1844,8 +1663,7 @@ cpdef prepPvalICInd(
     bandwidth_mult, #Multiplier of bandwidth
     bandwidth_adj,  #Adjust of bandwidth
     grid,           #Size of grid
-    thread_number,  #Number of thread
-    neighborhood
+    thread_number   #Number of thread
     ):
 
     '''
@@ -1870,7 +1688,7 @@ cpdef prepPvalICInd(
         
         results = results + list(np.asarray(rankIC(y, np.array(seedcomb.values.astype(int).tolist()),
                          k, int(len(seedcomb.index)), size, bandwidth,
-                         bandwidth_mult, bandwidth_adj, grid, thread_number, neighborhood)))
+                         bandwidth_mult, bandwidth_adj, grid, thread_number)))
 
     return results
     
@@ -1909,8 +1727,7 @@ cpdef prepPvalCIC(
     bandwidth_mult, #Multiplier of bandwidth
     bandwidth_adj,  #Adjust of bandwidth
     grid,           #Size of grid
-    thread_number,  #Number of thread
-    neighborhood
+    thread_number   #Number of thread
     ):
 
     """
@@ -1936,7 +1753,7 @@ cpdef prepPvalCIC(
         
         results = results + list(np.asarray(rankCIC(y, cythonseed, np.array(comb.iloc[1:].values.astype(int).tolist()),
                          k, int(len(comb.index)-1), size, bandwidth,
-                         bandwidth_mult, bandwidth_adj, grid,thread_number, neighborhood)))
+                         bandwidth_mult, bandwidth_adj, grid,thread_number)))
 
     return results
 
@@ -1974,8 +1791,7 @@ cpdef prepPvalIC(
     bandwidth_mult, #Multiplier of bandwidth
     bandwidth_adj,  #Adjust of bandwidth
     grid,           #Size of grid
-    thread_number,  #Number of thread
-    neighborhood
+    thread_number   #Number of thread
     ):
 
     """
@@ -2001,7 +1817,7 @@ cpdef prepPvalIC(
         
         results = results + list(np.asarray(rankIC(y, np.array(comb.iloc[1:].values.astype(int).tolist()),
                          k, int(len(comb.index)-1), size, bandwidth,
-                         bandwidth_mult, bandwidth_adj, grid,thread_number, neighborhood)))
+                         bandwidth_mult, bandwidth_adj, grid,thread_number)))
 
     return results
 
@@ -2015,8 +1831,7 @@ def calcIndivisualPvalIC(
     bandwidth_adj,  #Adjust of bandwidth
     grid,           #Size of grid
     thread_number,  #Number of thread
-    IC,             #IC to be compared
-    neighborhood
+    IC              #IC to be compared
     ):
 
     '''
@@ -2030,8 +1845,7 @@ def calcIndivisualPvalIC(
 
     res = runIndividualPvalIC(np.ascontiguousarray(np.asarray(targets)), 
                   np.asarray(subcomb.iloc[1].values.astype(int).tolist()),
-                  k, 10000, size, bandwidth, bandwidth_mult, bandwidth_adj, 
-                  grid,thread_number, neighborhood)
+                  k, 10000, size, bandwidth, bandwidth_mult, bandwidth_adj, grid,thread_number)
 
     countless = 0
     for r in res:
@@ -2056,8 +1870,7 @@ cpdef np.double_t[:] runIndividualPvalIC(
     np.double_t bandwidth_mult, #Multiplier of bandwidth
     np.double_t bandwidth_adj,  #Adjust of bandwidth
     int grid,                   #Size of grid
-    int thread_number,          #Number of thread
-    int neighborhood
+    int thread_number           #Number of thread
     ): 
     
     '''
@@ -2069,14 +1882,10 @@ cpdef np.double_t[:] runIndividualPvalIC(
     cdef np.double_t[:,:] y = np.asarray(ys_in)
     cdef np.int_t[:] x = np.asarray(x_in)
 
-    cdef np.double_t miny
-    cdef np.double_t deltay
-
+    #Run multiple IC parallelly 
     for i in prange(n, nogil=True,num_threads=thread_number):
-        miny = findmin(y[i,:], size)
-        deltay = findmax(y[i,:], size) - findmin(y[i,:], size)
         res[i] = binaryInformationCoefficient_cython(y[i,:], x, k, size, bandwidth, bandwidth_mult, 
-                                                     bandwidth_adj, neighborhood, deltay, miny)
+                                                     bandwidth_adj, grid)
     i = 0
     return res
    
@@ -2092,8 +1901,7 @@ def calcBootstrap(
     bandwidth_adj,  #Adjust of bandwidth
     grid,           #Size of grid
     thread_number,  #Number of thread
-    IC,             #IC to be compared
-    neighborhood
+    IC              #IC to be compared
     ):
 
     '''
@@ -2114,7 +1922,7 @@ def calcBootstrap(
 
     res = runBootstrap(np.ascontiguousarray(np.asarray(targets)), cythonseed, 
                        np.asarray(features), k, 100, math.floor(len(subcomb.columns.tolist())*0.62), 
-                       bandwidth, bandwidth_mult, bandwidth_adj, grid,thread_number, neighborhood)
+                       bandwidth, bandwidth_mult, bandwidth_adj, grid,thread_number)
     
     ninety = [np.percentile(np.asarray(res), 5), np.percentile(np.asarray(res), 95)]
     diff = max(IC - ninety[0],ninety[1] - IC)
@@ -2137,8 +1945,7 @@ cpdef np.double_t[:] runBootstrap(
     np.double_t bandwidth_mult, #Multiplier of bandwidth
     np.double_t bandwidth_adj,  #Adjust of bandwidth
     int grid,                   #Size of grid
-    int thread_number,          #Number of thread
-    int neighborhood
+    int thread_number           #Number of thread
     ):
     
     '''
@@ -2151,15 +1958,10 @@ cpdef np.double_t[:] runBootstrap(
     cdef np.int_t[:,:] x = np.asarray(xs_in)
     cdef np.int_t[:] z = np.asarray(z_in)
 
-    cdef np.double_t miny
-    cdef np.double_t deltay
-
+    #Calculate CIC for each pair
     for i in prange(n, nogil=True,num_threads=thread_number):
-        miny = findmin(y[i,:], size)
-        deltay = findmax(y[i,:], size) - findmin(y[i,:], size)
-        res[i] = ConditionalInformationCoefficient_cython(y[i,:], x[i,:], z, k, size, bandwidth, 
-                                                          bandwidth_mult, bandwidth_adj, 
-                                                          neighborhood, deltay, miny)
+        res[i] = ConditionalInformationCoefficient_cython(y[i,:], x[i,:], z, k, size, bandwidth, bandwidth_mult, 
+                                                          bandwidth_adj, grid)
     i = 0
     return res
     
@@ -2172,8 +1974,7 @@ def calcBootstrapIC(
     bandwidth_adj,  #Adjust of bandwidth
     grid,           #Grid size
     thread_number,  #Number of thread
-    IC,             #IC to be compared
-    neighborhood
+    IC              #IC to be compared
     ):
 
     '''
@@ -2201,7 +2002,7 @@ def calcBootstrapIC(
     res = runBootstrapIC(np.ascontiguousarray(np.asarray(targets)), 
                          np.asarray(features).astype(int), k, 100, 
                          math.floor(len(subcomb.columns.tolist())*0.62), bandwidth, 
-                         bandwidth_mult, bandwidth_adj, grid, thread_number, neighborhood)
+                         bandwidth_mult, bandwidth_adj, grid, thread_number)
         
     #get value for 90 percentile and extract larger side
     ninety = [np.percentile(np.asarray(res), 5), np.percentile(np.asarray(res), 95)]
@@ -2224,8 +2025,7 @@ cpdef np.double_t[:] runBootstrapIC(
     np.double_t bandwidth_mult, #Multiplier of bandwidth
     np.double_t bandwidth_adj,  #Adjust of bandwidth
     int grid,                   #Size of grid
-    int thread_number,          #Number of thread
-    int neighborhood
+    int thread_number           #Number of thread
     ):
 
     '''
@@ -2236,15 +2036,11 @@ cpdef np.double_t[:] runBootstrapIC(
     cdef np.double_t[:] res = np.zeros(n)
     cdef np.double_t[:,:] y = np.asarray(ys_in)
     cdef np.int_t[:,:] x = np.asarray(xs_in)
-    cdef np.double_t miny
-    cdef np.double_t deltay
 
+    #Calculate IC for each pair
     for i in prange(n, nogil=True,num_threads=thread_number):
-        miny = findmin(y[i,:], size)
-        deltay = findmax(y[i,:], size) - findmin(y[i,:], size)
         res[i] = binaryInformationCoefficient_cython(y[i,:], x[i,:], k, size, bandwidth, 
-                                                     bandwidth_mult, bandwidth_adj, 
-                                                     neighborhood, deltay, miny)
+                                                     bandwidth_mult, bandwidth_adj, grid)
     i = 0
 
     return res
@@ -2656,13 +2452,13 @@ def savetopfig(
                         ha='center', va='center')
 
     #Save Plot
-    plt.savefig(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'_Result.'+figure_format,
+    plt.savefig(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'Result.'+figure_format,
                 format=figure_format)
     plt.close()
     
     #Set new line of gene locus  to ,
     #plotcomb.index = plotcomb.index.str.replace("\n", ",")
-    
+         
     #Adjust length of CIC/IC
     plotcomb['CICs'] = CICs
     
@@ -2679,7 +2475,7 @@ def savetopfig(
         gmt.loc[plotcomb.index.tolist()].to_csv(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'.gmt',sep='\t',header=False)
 
     #Save report
-    plotcomb.to_csv(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'_Result.txt',sep='\t')
+    plotcomb.to_csv(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'Result.txt',sep='\t')
         
     
 def saveresfigWithPval(
@@ -2893,7 +2689,7 @@ def saveresfigWithPval(
                     ha='center', va='center')
         
     #Save plot
-    plt.savefig(out_folder + prefix+'_Result.'+figure_format,format=figure_format)
+    plt.savefig(out_folder + prefix+'Result.'+figure_format,format=figure_format)
     plt.close()
     
     #Set new line of gene locus  to ,
@@ -2911,10 +2707,10 @@ def saveresfigWithPval(
     reportdf['pVals'] = [''] + pVals
 
     if (gmt is not None) and (all(elem in gmt.index.tolist() for elem in seedids) == True):
-        gmt.loc[seedids].to_csv(out_folder + prefix+'_Result.gmt',sep='\t',header=False)
+        gmt.loc[seedids].to_csv(out_folder + prefix+'Result.gmt',sep='\t',header=False)
     
     #Save report
-    reportdf.to_csv(out_folder + prefix+'_Result.txt',sep='\t')
+    reportdf.to_csv(out_folder + prefix+'Result.txt',sep='\t')
     
 def saveresfig(
     plotcomb,       #Dataframe used to plot 
@@ -3079,7 +2875,7 @@ def saveresfig(
             ax.text(0.5,0.5,"%.3f"%(CICs[(i-1)*2+2]), ha='center', va='center')
 
     #Save figure 
-    plt.savefig(out_folder + prefix+'_Result.'+figure_format,format=figure_format)
+    plt.savefig(out_folder + prefix+'Result.'+figure_format,format=figure_format)
     plt.close()
     
     #Set new line of gene locus  to ,
@@ -3096,10 +2892,10 @@ def saveresfig(
         reportdf['bootstrap'] = [''] + bootstraps
     
     if (gmt is not None) and (all(elem in gmt.index.tolist() for elem in seedids) == True):
-        gmt.loc[seedids].to_csv(out_folder + prefix+'_Result.gmt',sep='\t',header=False)
+        gmt.loc[seedids].to_csv(out_folder + prefix+'Result.gmt',sep='\t',header=False)
 
     #Save report
-    reportdf.to_csv(out_folder + prefix+'_Result.txt',sep='\t')
+    reportdf.to_csv(out_folder + prefix+'Result.txt',sep='\t')
     
 def topMatches(
     comb,           #Dataframe contain target and features
@@ -3111,7 +2907,6 @@ def topMatches(
     bandwidth_mult, #Multiplier for bandwidth
     bandwidth_adj,  #Adjust for bandwidth
     thread_number,  #Number of parallel thread
-    neighborhood,
     seed = 1        #Seed value 
     ):
 
@@ -3123,7 +2918,7 @@ def topMatches(
     if isinstance(seed, int):
         results = rankIC(y, np.array(comb.iloc[1:].values.astype(int).tolist()),
                          k, int(len(comb.index)-1), size, bandwidth,
-                         bandwidth_mult, bandwidth_adj, grid,thread_number, neighborhood)
+                         bandwidth_mult, bandwidth_adj, grid,thread_number)
         rank = []
         for i in range(len(results)):
             rank.append([comb.index[i+1],results[i]])
@@ -3131,7 +2926,7 @@ def topMatches(
     else:
         results = rankCIC(y, seed, np.array(comb.iloc[1:].values.astype(int).tolist()),
                          k, int(len(comb.index)-1), size, bandwidth,
-                         bandwidth_mult, bandwidth_adj, grid,thread_number, neighborhood)
+                         bandwidth_mult, bandwidth_adj, grid,thread_number)
         rank = []
         for i in range(len(results)):
             rank.append([comb.index[i+1],results[i]])
@@ -3161,16 +2956,15 @@ def readInput(
     target_name,    #Target name
     direction,      #Direction to sort target
     gene_locus,     #Name of gene locus file
+    normalize,      #Name of normalization method
     low_threshold,  #Lower threshold to filter feature
     high_threshold, #Higher threshold to filter feature
+    grid,           #Gird size
     subset,         #List to subset target file if no subset, indicated 'no'
     gene_set,
     gene_separator,
-    thread_number,
-    tissue_file
+    thread_number
     ):
-    
-    print('seed_file is' + seed_file)
 
     '''
     Function to read input files to generate combined dataframe
@@ -3188,48 +2982,20 @@ def readInput(
         target = target.drop(columns=target.columns[0]).loc[[target_name]]
         target.columns = target.columns.str.replace("-", "_")
 
-
     #Read seed file and feature file and extract seed. If same, read only one
-    if tissue_file:
-        if seed_file == feature_file:
-            feature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
-            feature = feature.drop(columns=feature.columns[0])
-            feature.columns = feature.columns.str.replace("-", "_")
-            patient = pd.read_csv(tissue_file,skiprows=[0,1],sep='\t',index_col=0)
-            patient = patient.drop(columns=patient.columns[0])
-            patient.columns = patient.columns.str.replace("-", "_")
-            commoncol = list(set(target.columns)&set(feature.columns)&set(patient.columns))
-            comb = pd.concat([target,feature],  join='inner')
-            comb = comb[commoncol]
-        else:
-            feature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
-            feature = feature.drop(columns=feature.columns[0])
-            seed_df = pd.read_csv(seed_file,skiprows=[0,1],sep='\t',index_col=0)
-            seed_df = seed_df.drop(columns=seed_df.columns[0]).loc[seed_name]
-            patient = pd.read_csv(tissue_file,skiprows=[0,1],sep='\t',index_col=0)
-            patient = patient.drop(columns=patient.columns[0])
-            patient.columns = patient.columns.str.replace("-", "_")
-            feature.columns = feature.columns.str.replace("-", "_")
-            seed_df.columns = seed_df.columns.str.replace("-", "_")
-            seed_df = seed_df.dropna(axis=1)
-            commoncol = list(set(target.columns)&set(seed_df.columns)&set(feature.columns)&set(patient.columns))
-            comb = pd.concat([target,seed_df,feature],  join='inner')
-            comb = comb[commoncol]
+    if seed_file == feature_file:
+        feature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
+        feature = feature.drop(columns=feature.columns[0])
+        feature.columns = feature.columns.str.replace("-", "_")
+        comb = pd.concat([target,feature],  join='inner')
     else:
-        if seed_file == feature_file:
-            feature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
-            feature = feature.drop(columns=feature.columns[0])
-            feature.columns = feature.columns.str.replace("-", "_")
-            comb = pd.concat([target,feature],  join='inner')
-        else:
-            feature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
-            feature = feature.drop(columns=feature.columns[0])
-            seed_df = pd.read_csv(seed_file,skiprows=[0,1],sep='\t',index_col=0)
-            seed_df = seed_df.drop(columns=seed_df.columns[0]).loc[seed_name]
-            seed_df = seed_df.dropna(axis=1)
-            feature.columns = feature.columns.str.replace("-", "_")
-            seed_df.columns = seed_df.columns.str.replace("-", "_")
-            comb = pd.concat([target,seed_df,feature],  join='inner')
+        feature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
+        feature = feature.drop(columns=feature.columns[0])
+        seed_df = pd.read_csv(seed_file,skiprows=[0,1],sep='\t',index_col=0)
+        seed_df = seed_df.drop(columns=seed_df.columns[0]).loc[seed_name]
+        feature.columns = feature.columns.str.replace("-", "_")
+        seed_df.columns = seed_df.columns.str.replace("-", "_")
+        comb = pd.concat([target,seed_df,feature],  join='inner')
 
     #If subset list is passed, extract subset only
     if subset != 'no':
@@ -3251,9 +3017,9 @@ def readInput(
     comb = comb.dropna(axis=0)
 
     #remove row by low and high threshold
-    if low_threshold < 1 and low_threshold != 0:
+    if low_threshold < 1:
         low_threshold = len(comb.iloc[0].tolist()) * low_threshold
-    if high_threshold < 1 and high_threshold != 0:
+    if high_threshold < 1:
         high_threshold = len(comb.iloc[0].tolist()) * high_threshold
     rmrow = []
     for i in comb.index.tolist()[1:]:
@@ -3313,3 +3079,4 @@ def check_inset(gene_set,feature_name,gene_separator):
         return True
     else:
         return False
+    

@@ -14,7 +14,6 @@ cdef np.double_t EPS = np.finfo(float).eps
 import sys
 import pandas as pd
 import os
-import tarfile
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -443,7 +442,7 @@ cpdef np.double_t binaryInformationCoefficient_cython(
     """ Calculate IC between continuous 'y' and binary 'x' """
     cdef np.double_t  cor, y_bandwidth, sigma_y, deltak
     cdef np.double_t  term_2_pi_sigma_y, integral, mutual_information
-    cdef np.double_t  pX_0, pX_1, pysum, py0sum, py1sum, p_y_xsum
+    cdef np.double_t  pX_0, pX_1, pysum, py0sum, py1sum
     cdef int y_d, i, j, sumx, grid
     cdef np.double_t* normy
     cdef np.double_t* kernal
@@ -458,14 +457,15 @@ cpdef np.double_t binaryInformationCoefficient_cython(
     
     # Calculate bandwidth
     cor = local_pearsonr(y, x, size)
+    #printf("cor is %.5f\n",cor)
     
     y_bandwidth = bandwidth * (bandwidth_mult * (1 + (bandwidth_adj) * fabs(cor)))
 
     deltak = y_bandwidth * neighborhood
     grid = <int>(round(deltay/deltak*k))
     
-    if grid < 2*k+1:
-        grid = 2*k+1
+    #printf("grid is %.d\n",grid)
+    #printf("bandwidth is %.d\n",y_bandwidth)
     
     normy = <np.double_t*> malloc(size * sizeof(np.double_t))
     for i in range(size):
@@ -505,47 +505,48 @@ cpdef np.double_t binaryInformationCoefficient_cython(
                 p_y_1[index] += kernel[j]
 
     pysum = 0.0
-    p_y_xsum = 0.0
+    py0sum = 0.0
+    py1sum = 0.0
     
+    i = 0
     for i in range(grid):
         p_y_total[i] = p_y_total[i] + EPS
         p_y_0[i] = p_y_0[i] + EPS
         p_y_1[i] = p_y_1[i] + EPS
         pysum += p_y_total[i]
-        p_y_xsum += p_y_0[i] +  p_y_1[i]
-
+        py0sum += p_y_0[i]
+        py1sum += p_y_1[i]
+    
+    i = 0
     for i in range(grid):
         p_y_total[i] = p_y_total[i]/pysum
-        p_y_0[i] = p_y_0[i]/p_y_xsum
-        p_y_1[i] = p_y_1[i]/p_y_xsum    
+        p_y_0[i] = p_y_0[i]/py0sum
+        p_y_1[i] = p_y_1[i]/py1sum
         
     mutual_information = 0
     
     pX_1 = <double>sumx/<double>size
     pX_0 = <double>(size-sumx)/<double>size
-
+    integral = 0.0
     mutual_information = 0.0
+    i = 0
+    for i in range(grid):
+        integral = integral + (p_y_0[i] * log(p_y_0[i]/p_y_total[i]))
+    mutual_information +=  pX_0 * integral
     
     integral = 0.0
-    for i in range(grid):    
-        integral = integral + (p_y_0[i] * log(p_y_0[i]/(p_y_total[i] * pX_0)))
-      
-    mutual_information +=  integral
-    
-    integral = 0.0    
-    for i in range(grid):    
-        integral = integral + (p_y_1[i] * log(p_y_1[i]/(p_y_total[i] * pX_1)))
-
-    mutual_information +=  integral
+    i = 0
+    for i in range(grid):
+        integral = integral + (p_y_1[i] * log(p_y_1[i]/p_y_total[i]))
+    mutual_information +=  pX_1 * integral
     
     free(p_y_total)
     free(p_y_0)
     free(p_y_1)
     free(kernel)
     free(normy)
-
+    
     return (cor/fabs(cor)) * sqrt(1.0 - exp(-2.0 * mutual_information))
-
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -863,18 +864,18 @@ cpdef produce_mutation_file(
     ratio = float(1/3), # Ratio of selected features by weight that is acceptable
     verbose = 1,
     sample_list = None,
-    total_ratio = 0.4, # Percentage of sample
+    total_ratio = 0.4,
     if_gmt = True,
     k = 5,
     bandwidth_mult = 0.95,
     bandwidth_adj = 0.65,
     grid = 34,
     thread_number = 1,
-    neighborhood = 4,
-    gzip = True,
-    combine = False # If allele figures are combined
+    neighborhood = 4
     ):
 
+
+    
     """
     Function to create mutation gct file with given file using given mode.
     """
@@ -926,14 +927,7 @@ cpdef produce_mutation_file(
                     sample_set.add(i)
                 sample_list = list(sample_set)
             else:
-                if verbose > 0:
-                    print('Start getting sample information.')
-                # Make list of sample and its unique index
-                sample_set=set()
-                for i in ds['Tumor_Sample_Barcode']:
-                    sample_set.add(i)
-                sample_set = set(sample_list)&sample_set
-                sample_list = list(sample_set)
+                sample_set = set(sample_list)
 
             # Make gene list with all gene if no gene list input, find intersection if gene list is passed
             if gene_list == None:
@@ -988,13 +982,9 @@ cpdef produce_mutation_file(
             if make_figure == True:
                 if verbose > 0:
                     print('Start generating figures.')
-                if combine == True:
-                    newgenedf = plotclass(gct_output_file_prefix, 'all', restable,
-                                              figure_format, out_folder, featurecmap)
-                else:
-                    for gene in gene_list:
-                        newgenedf = plotclass(gct_output_file_prefix, gene, restable.loc[geneclasspair[gene]],
-                                              figure_format, out_folder, featurecmap)
+                for gene in gene_list:
+                    newgenedf = plotclass(gct_output_file_prefix, gene, restable.loc[geneclasspair[gene]],
+                                          figure_format, out_folder, featurecmap)
 
             if verbose > 0:
                 print('Start removing feature with more than total_ratio.')
@@ -1051,14 +1041,7 @@ cpdef produce_mutation_file(
                     sample_set.add(i)
                 sample_list = list(sample_set)
             else:
-                if verbose > 0:
-                    print('Start getting sample information.')
-                # Make list of sample and its unique index
-                sample_set=set()
-                for i in ds['Tumor_Sample_Barcode']:
-                    sample_set.add(i)
-                sample_set = set(sample_list)&sample_set
-                sample_list = list(sample_set)
+                sample_set = set(sample_list)
 
             # Make gene list with all gene if no gene list input, find intersection if gene list is passed
             if gene_list == None:
@@ -1115,19 +1098,15 @@ cpdef produce_mutation_file(
 
             # If make figure is True, make one figure with all instances by gene
             if make_figure == True:
-                if combine == True:
-                    newgenedf = plotclass(gct_output_file_prefix, 'all', restable,
-                                              figure_format, out_folder, featurecmap)
-                else:
-                    if verbose > 0:
-                        print('Start generating figures.')
-                    countgene = 0
-                    for gene in gene_list:
-                        countgene += 1
-                        if verbose > 1:
-                            print(gene + ' ' + str(countgene)+'/'+str(len(gene_list)))
-                        newgenedf = plotclass(gct_output_file_prefix, gene, restable.loc[geneclasspair[gene]],
-                                              figure_format, out_folder, featurecmap)
+                if verbose > 0:
+                    print('Start generating figures.')
+                countgene = 0
+                for gene in gene_list:
+                    countgene += 1
+                    if verbose > 1:
+                        print(gene + ' ' + str(countgene)+'/'+str(len(gene_list)))
+                    newgenedf = plotclass(gct_output_file_prefix, gene, restable.loc[geneclasspair[gene]],
+                                          figure_format, out_folder, featurecmap)
 
             #Remove gene with more than total_ratio are mutated
             if verbose > 0:
@@ -1187,6 +1166,8 @@ cpdef produce_mutation_file(
             # If name is not matching by default, check for subset, if matching, just take intersect
             # This one has to be clear since taking subset to match sometimes cause problem
             if name_match == False:
+                if verbose > 0:
+                    print('Matching column name between phenotype and maf file.')
                 if sample_list != None:
                     idlist = sample_list
                 else:
@@ -1201,19 +1182,8 @@ cpdef produce_mutation_file(
                             break
                     if iffind == False:
                         newcolnames.append('notfound')
-                phenotype.columns = newcolnames
 
-                newcolnames = []
-                for i in sample_list:
-                    iffind = False
-                    for j in idlist:
-                        if i in j:
-                            newcolnames.append(j)
-                            iffind = True
-                            break
-                    if iffind == False:
-                        newcolnames.append('notfound_sl')
-                sample_list = newcolnames
+                phenotype.columns = newcolnames
 
             # Take indicated row of phenotype to use
             if verbose > 0:
@@ -1302,14 +1272,8 @@ cpdef produce_mutation_file(
             if make_figure == True:
                 if verbose > 0:
                     print('Generating figures.')
-                if combine == True:
-                    newgenedf = plotfreq(gct_output_file_prefix, weight_threshold, phenotype, 'all',
-                                         restable, figure_format, direction,
-                                         out_folder, featurecmap, y, k, bandwidth, thread_number, 
-                                         bandwidth_mult, bandwidth_adj, grid, neighborhood, size)
-                else:
-                    for gene in gene_list:
-                        newgenedf = plotfreq(gct_output_file_prefix, weight_threshold, phenotype, gene,
+                for gene in gene_list:
+                    newgenedf = plotfreq(gct_output_file_prefix, weight_threshold, phenotype, gene,
                                          restable.loc[geneallelepair[gene]], figure_format, direction,
                                          out_folder, featurecmap, y, k, bandwidth, thread_number, 
                                          bandwidth_mult, bandwidth_adj, grid, neighborhood, size)
@@ -1405,13 +1369,11 @@ cpdef produce_mutation_file(
                 sample_list = sample_list_new
             # If name is not matching by default, check for subset, if matching, just take intersect
             # This one has to be clear since taking subset to match sometimes cause problem
-            print('here')
             if name_match == False:
-                print('start matching name')
-                # if sample_list != None:
-                #     idlist = sample_list
-                # else:
-                idlist = ds['Tumor_Sample_Barcode'].unique().tolist()
+                if sample_list != None:
+                    idlist = sample_list
+                else:
+                    idlist = ds['Tumor_Sample_Barcode'].unique().tolist()
                 newcolnames = [] 
                 for i in phenotype.columns.tolist():
                     iffind = False
@@ -1422,21 +1384,8 @@ cpdef produce_mutation_file(
                             break
                     if iffind == False:
                         newcolnames.append('notfound')
-                phenotype.columns = newcolnames
-                print(newcolnames)
 
-                newcolnames = []
-                for i in sample_list:
-                    iffind = False
-                    for j in idlist:
-                        if i in j:
-                            newcolnames.append(j)
-                            iffind = True
-                            break
-                    if iffind == False:
-                        newcolnames.append('notfound_sl')
-                sample_list = newcolnames
-                print(newcolnames)
+                phenotype.columns = newcolnames
 
             # Take indicated row of phenotype to use
             if isinstance(phenotype_name,int):
@@ -1503,14 +1452,8 @@ cpdef produce_mutation_file(
             bandwidth = calc_bandwidth(y,size)
             # If make figure is True, make one figure with all instances by gene
             if make_figure == True:
-                if combine == True:
-                    newgenedf = plotweight(gct_output_file_prefix, weight_threshold, phenotype, 'all',
-                                           restable, figure_format,
-                                           direction, out_folder, featurecmap, y, k, bandwidth, bandwidth_mult, 
-                                           bandwidth_adj, grid, thread_number, neighborhood, size)
-                else:
-                    for gene in gene_list:
-                        newgenedf = plotweight(gct_output_file_prefix, weight_threshold, phenotype, gene,
+                for gene in gene_list:
+                    newgenedf = plotweight(gct_output_file_prefix, weight_threshold, phenotype, gene,
                                            restable.loc[geneallelepair[gene]], figure_format,
                                            direction, out_folder, featurecmap, y, k, bandwidth, bandwidth_mult, 
                                            bandwidth_adj, grid, thread_number, neighborhood, size)
@@ -1603,9 +1546,7 @@ cpdef produce_mutation_file(
 
         if mode == 'allele' or mode == 'all':
 
-            print('start making gct by allele')
-
-            ds['Tumor_Sample_Barcode'].replace('-','_',regex=True,inplace=True)
+            print('start making gct by class')
 
             if sample_list == None:
                 # Make list of sample and its unique index
@@ -1615,23 +1556,6 @@ cpdef produce_mutation_file(
                 sample_list = list(sample_set)
             else:
                 sample_set = set(sample_list)
-
-            if name_match == False:
-                print('start matching name')
-
-                idlist = ds['Tumor_Sample_Barcode'].unique().tolist()
-                newcolnames = []
-                for i in sample_list:
-                    iffind = False
-                    for j in idlist:
-                        if i in j:
-                            newcolnames.append(j)
-                            iffind = True
-                            break
-                    if iffind == False:
-                        newcolnames.append('notfound_sl')
-                sample_list = newcolnames
-                print(newcolnames)
 
             # Make gene list with all gene if no gene list input, find intersection if gene list is passed
             if gene_list == None:
@@ -1670,12 +1594,8 @@ cpdef produce_mutation_file(
 
             # If make figure is True, make one figure with all instances by gene
             if make_figure == True:
-                if combine == True:
-                    newgenedf = plotclass(gct_output_file_prefix, 'all', restable,
-                                              figure_format, out_folder, featurecmap)
-                else:
-                    for gene in gene_list:
-                        plotclass(gct_output_file_prefix,gene,restable.loc[geneallelepair[gene]],figure_format,out_folder)
+                for gene in gene_list:
+                    plotclass(gct_output_file_prefix,gene,restable.loc[geneallelepair[gene]],figure_format,out_folder)
 
             counts = []
             for i in restable.index.tolist():
@@ -1752,12 +1672,8 @@ cpdef produce_mutation_file(
                 restable.loc[ds.loc[i]['Hugo_Symbol']+'_'+ds.loc[i]['Variant_Classification'],ds.loc[i]['Tumor_Sample_Barcode']] = 1
 
             if make_figure == True:
-                if combine == True:
-                    newgenedf = plotclass(gct_output_file_prefix, 'all', restable,
-                                              figure_format, out_folder, featurecmap)
-                else:
-                    for gene in gene_list:
-                        newgenedf = plotclass(gct_output_file_prefix,gene,restable.loc[genepair[gene]],figure_format,out_folder)
+                for gene in gene_list:
+                    newgenedf = plotclass(gct_output_file_prefix,gene,restable.loc[genepair[gene]],figure_format,out_folder)
 
             #Remove gene with more than total_threshold are mutated
             for gene in gene_list:
@@ -1923,17 +1839,11 @@ cpdef produce_mutation_file(
 
             # If make figure is True, make one figure with all instances by gene
             if make_figure == True:
-                if combine == True:
-                    newgenedf = plotfreq(gct_output_file_prefix, weight_threshold, phenotype, 'all', 
-                                           ingct, figure_format, direction,
+                for gene in genenamedic.keys():
+                    newgenedf = plotfreq(gct_output_file_prefix, weight_threshold, phenotype, gene, 
+                                           ingct.loc[genenamedic[gene]], figure_format, direction,
                                            out_folder, featurecmap, y, k, bandwidth, bandwidth_mult, 
                                            bandwidth_adj, grid, thread_number, neighborhood, size)
-                else:
-                    for gene in genenamedic.keys():
-                        newgenedf = plotfreq(gct_output_file_prefix, weight_threshold, phenotype, gene, 
-                                               ingct.loc[genenamedic[gene]], figure_format, direction,
-                                               out_folder, featurecmap, y, k, bandwidth, bandwidth_mult, 
-                                               bandwidth_adj, grid, thread_number, neighborhood, size)
 
             #Remove gene with more than 40% are mutated
             for gene in list(genenamedic.keys()):
@@ -2124,15 +2034,8 @@ cpdef produce_mutation_file(
 
             # If make figure is True, make one figure with all instances by gene
             if make_figure == True:
-                if combine == True:
-                    newgenedf = plotweight(gct_output_file_prefix, weight_threshold, phenotype, 'all', 
-                                           ingct, figure_format, direction,
-                                           out_folder, featurecmap, y, k, bandwidth, bandwidth_mult, 
-                                           bandwidth_adj, grid, thread_number, neighborhood, size)
-
-                else:
-                    for gene in genenamedic.keys():
-                        newgenedf = plotweight(gct_output_file_prefix, weight_threshold, phenotype, gene, 
+                for gene in genenamedic.keys():
+                    newgenedf = plotweight(gct_output_file_prefix, weight_threshold, phenotype, gene, 
                                            ingct.loc[genenamedic[gene]], figure_format, direction,
                                            out_folder, featurecmap, y, k, bandwidth, bandwidth_mult, 
                                            bandwidth_adj, grid, thread_number, neighborhood, size)
@@ -2210,7 +2113,3 @@ cpdef produce_mutation_file(
             with open(out_folder+gct_output_file_prefix + '_weight_'+str(weight_threshold)+'.gct', mode = "w") as output_file:
                 output_file.writelines("#1.2\n{}\t{}\n".format(resultdf.shape[0], resultdf.shape[1] - 1))
                 resultdf.to_csv(output_file, sep= '\t')
-
-    if gzip == True:
-        with tarfile.open(gct_output_file_prefix+'.tar.gz', "w:gz") as tar:
-            tar.add(out_folder, arcname=os.path.basename(out_folder))
