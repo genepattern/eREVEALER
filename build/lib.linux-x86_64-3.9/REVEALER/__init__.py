@@ -1,2 +1,0 @@
-name = "REVEALER"
-import pyximport

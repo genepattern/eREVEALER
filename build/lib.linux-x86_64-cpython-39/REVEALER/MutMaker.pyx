@@ -1203,18 +1203,16 @@ cpdef produce_mutation_file(
                         newcolnames.append('notfound')
                 phenotype.columns = newcolnames
 
-                if sample_list != None:
-                    newcolnames = []
-                    for i in sample_list:
-                        iffind = False
-                        for j in idlist:
-                            if i in j:
-                                newcolnames.append(j)
-                                iffind = True
-                                break
-                        if iffind == False:
-                            newcolnames.append('notfound_sl')
-                    phenotype.columns = newcolnames
+                newcolnames = []
+                for i in sample_list:
+                    iffind = False
+                    for j in idlist:
+                        if i in j:
+                            newcolnames.append(j)
+                            iffind = True
+                            break
+                    if iffind == False:
+                        newcolnames.append('notfound_sl')
                 sample_list = newcolnames
 
             # Take indicated row of phenotype to use
@@ -1327,7 +1325,7 @@ cpdef produce_mutation_file(
 
             if verbose > 0:
                 print('Calculating IC for all feature.')
-                weights = list(np.asarray(rankIC(phenotype, np.array(restable.values.astype(int).tolist()),
+            weights = list(np.asarray(rankIC(phenotype, np.array(restable.values.astype(int).tolist()),
                          k, int(len(restable.index)), size, bandwidth,
                          bandwidth_mult, bandwidth_adj, grid, thread_number, neighborhood)))
             
@@ -1407,15 +1405,13 @@ cpdef produce_mutation_file(
                 sample_list = sample_list_new
             # If name is not matching by default, check for subset, if matching, just take intersect
             # This one has to be clear since taking subset to match sometimes cause problem
+            print('here')
             if name_match == False:
                 print('start matching name')
                 # if sample_list != None:
                 #     idlist = sample_list
                 # else:
-                if sample_list != None:
-                    idlist = sample_list
-                else:
-                    idlist = ds['Tumor_Sample_Barcode'].unique().tolist()
+                idlist = ds['Tumor_Sample_Barcode'].unique().tolist()
                 newcolnames = [] 
                 for i in phenotype.columns.tolist():
                     iffind = False
@@ -1427,22 +1423,20 @@ cpdef produce_mutation_file(
                     if iffind == False:
                         newcolnames.append('notfound')
                 phenotype.columns = newcolnames
-                #print(newcolnames)
+                print(newcolnames)
 
-                if sample_list != None:
-                    newcolnames = []
-                    for i in sample_list:
-                        iffind = False
-                        for j in idlist:
-                            if i in j:
-                                newcolnames.append(j)
-                                iffind = True
-                                break
-                        if iffind == False:
-                            newcolnames.append('notfound_sl')
-                    phenotype.columns = newcolnames
+                newcolnames = []
+                for i in sample_list:
+                    iffind = False
+                    for j in idlist:
+                        if i in j:
+                            newcolnames.append(j)
+                            iffind = True
+                            break
+                    if iffind == False:
+                        newcolnames.append('notfound_sl')
                 sample_list = newcolnames
-                #print(sample_list)
+                print(newcolnames)
 
             # Take indicated row of phenotype to use
             if isinstance(phenotype_name,int):
@@ -1534,7 +1528,6 @@ cpdef produce_mutation_file(
                          bandwidth_mult, bandwidth_adj, grid, thread_number, neighborhood)))
 
             restable['weights'] = weights
-            restable.to_csv(out_folder+gct_output_file_prefix + 'fulltable_withweight.txt', sep='\t')
             subset = []
             delgene = []
             if mode == 'weight':

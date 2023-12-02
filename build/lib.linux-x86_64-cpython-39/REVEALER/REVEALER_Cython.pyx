@@ -1226,8 +1226,8 @@ cpdef topmatch(
 @cython.boundscheck(False)
 @cython.cdivision(True)
 cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
-                  feature_files='no', # gct file for features(binary)
-                  seed_files='no', # file for seed, if not provided, feature file is used directly 
+                  feature_file='no', # gct file for features(binary)
+                  seed_file='no', # file for seed, if not provided, feature file is used directly 
                   target_df='no', # dataframe for target
                   feature_df='no', # dataframe for features
                   seed_df='no', # dataframe for seed
@@ -1262,11 +1262,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
                   alpha = 1,
                   neighborhood = 4,
                   tissue_file = None,
-                  gzip = True,
-                  feature_remove = None,
-                  color = 'blue',
-                  linewidth = 2.5,
-                  feature_set = None
+                  gzip = True
                  ):
     
     report = ''
@@ -1285,7 +1281,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
     
     start = time.time()
     if (isinstance(target_df,str) or isinstance(feature_df,str)) and \
-       (target_file == 'no' or feature_files == 'no') :
+       (target_file == 'no' or feature_file == 'no') :
         raise Exception("Please put input!")
     if mp.cpu_count() <thread_number:
         if verbose != 0:
@@ -1297,17 +1293,16 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
             print('All core('+str(thread_number)+') Used')
     report = report + 'Number of thread used: ' + str(thread_number) + '\n'
     
-    if seed_files == 'no':
-        seed_files = feature_files
+    if seed_file == 'no':
+        seed_file = feature_file
     if isinstance(feature_df,str):
-        comb,locusdic = readInput(target_file = target_file, feature_files = feature_files, 
-                         seed_files = seed_files, seed_name = seed_name, target_name = target_name,
+        comb,locusdic = readInput(target_file = target_file, feature_file = feature_file, 
+                         seed_file = seed_file, seed_name = seed_name, target_name = target_name,
                          direction = direction, gene_locus = gene_locus,
                          low_threshold = low_threshold, high_threshold = high_threshold,
                          subset = subset, gene_set = gene_set, 
                          gene_separator = gene_separator, thread_number = thread_number,
-                         tissue_file = tissue_file, feature_remove = feature_remove,
-                         feature_set = feature_set)
+                         tissue_file = tissue_file)
     else:
         comb = pd.concat([target_df,seed_df,feature_df], join='inner')
         rmrow=[]
@@ -1357,10 +1352,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
                                                            alpha = alpha,
                                                            neighborhood = neighborhood,
                                                            tissue_file = tissue_file,
-                                                           gzip = gzip,
-                                                           color = color,
-                                                           linewidth = linewidth,
-                                                           feature_set = feature_set)
+                                                           gzip = gzip)
         
     elif mode == 'single':
         target_df, seed_df, featuresdf = REVEALERInner(prefix = prefix, comb = comb, grid = grid, 
@@ -1385,10 +1377,7 @@ cpdef runREVEALER(target_file='no', # gct file for target(continuous or binary)
                                                        alpha = alpha,
                                                        neighborhood = neighborhood,
                                                        tissue_file = tissue_file,
-                                                       gzip = gzip,
-                                                       color = color,
-                                                       linewidth = linewidth,
-                                                       feature_set = feature_set)
+                                                       gzip = gzip)
         
     return target_df, seed_df, featuresdf
 
@@ -1422,26 +1411,17 @@ cpdef REVEALERInner(
     alpha,
     neighborhood,
     tissue_file,
-    gzip,
-    color,
-    linewidth,
-    feature_set
+    gzip
     ):
 
-    seedcmap = clr.LinearSegmentedColormap.from_list('custom greys', [(.9,.9,.9),(0.0,0.0,0.0)], 
+    seedcmap = clr.LinearSegmentedColormap.from_list('custom greys', [(.9,.9,.9),(0.5,0.5,0.5)], 
                                                      N=256)
-    if color == 'blue':
-        featurecmap = clr.LinearSegmentedColormap.from_list('custom greys', 
-                                                            [(<double>(176)/<double>(255),
-                                                            <double>(196)/<double>(255),
-                                                            <double>(222)/<double>(255)),
-                                                            (0,0,<double>(139)/<double>(255))], N=256)
-    if color == 'black':
-        featurecmap = clr.LinearSegmentedColormap.from_list('custom greys', 
-                                                        [(<double>(155)/<double>(255),
-                                                        <double>(237)/<double>(255),
-                                                        <double>(255)/<double>(255)),
-                                                        (0,0,0)], N=256)
+    featurecmap = clr.LinearSegmentedColormap.from_list('custom greys', 
+                                                        [(<double>(176)/<double>(255),
+                                                        <double>(196)/<double>(255),
+                                                        <double>(222)/<double>(255)),
+                                                        (0,0,<double>(139)/<double>(255))], N=256)
+
 
     newpheno = []
     target = comb.iloc[0].tolist()
@@ -1456,10 +1436,8 @@ cpdef REVEALERInner(
         patient = pd.read_csv(tissue_file,skiprows=[0,1],sep='\t',index_col=0)
         patient = patient.drop(columns=patient.columns[0])
         patient.columns = patient.columns.str.replace("-", "_")
-        overlap_cols = comb.columns.intersection(patient.columns).tolist()
-        unique_cols = comb.columns.difference(patient.columns).tolist()
-        combpatient = pd.concat([comb.iloc[[0]], patient[overlap_cols]]).fillna(0)
-        combpatient = combpatient[comb.columns]
+        patient = patient[comb.columns]
+        combpatient = pd.concat([comb.iloc[[0]],patient])
         corr = []
         for i in combpatient.index.tolist()[1:]:
             if combpatient.loc[i].sum() == 0:
@@ -1713,8 +1691,8 @@ cpdef REVEALERInner(
                            figure_format, pVals, bootstraps, out_folder, target_name, seed_name,
                            locusdic, gmt)
     else:
-        saveresfig_3(savecomb, seedids, CICs, seedlists, seedcmap, featurecmap, prefix,
-                   figure_format, bootstraps, out_folder, target_name, seed_name, locusdic, gmt, linewidth)
+        saveresfig(savecomb, seedids, CICs, seedlists, seedcmap, featurecmap, prefix,
+                   figure_format, bootstraps, out_folder, target_name, seed_name, locusdic, gmt)
 
     if verbose != 0:
         print('Time used to run loops: %s second(s)'%(int(time.time() - start)))
@@ -2555,16 +2533,6 @@ def savetopfig(
     Function to save intermediate figures with top ranking features in each loop
     '''
 
-
-    rowspan_seed = 3
-    rowspan_feature = 5
-    colspan_name = 30
-    colspan_heatmap = 90
-    colspan_IC = 10
-    colspan_bootstrap = 10
-    shape_fig = (rowspan_feature*(len(CICs)+2), 
-        colspan_name + colspan_heatmap + colspan_IC + colspan_bootstrap)
-
     #Check if the bootstrap, clustering, and p-value are calculated
     plotpval = False
     piled = False
@@ -2579,32 +2547,32 @@ def savetopfig(
     #Prepare canvas for result figure
     fig = plt.figure()
     fig.set_figheight(len(CICs)/2.0+1)
-    fig.set_figwidth((colspan_name+colspan_heatmap+colspan_IC+colspan_bootstrap)/10)
+    fig.set_figwidth(14.2)
 
     #Label target name at left of target heatmap
-    ax = plt.subplot2grid(shape=shape_fig, loc=(0, 0), colspan=colspan_name,rowspan=rowspan_feature)
+    ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=(0, 0), colspan=30,rowspan=5)
     ax.set_axis_off()
     ax.text(0.9,0.5, 'Target:'+str(target_name), ha='right', va='center')
 
     #Plot heatmap for target
-    ax = plt.subplot2grid(shape=shape_fig, loc=(0, 30), colspan=colspan_heatmap,rowspan=rowspan_feature)
+    ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=(0, 30), colspan=90,rowspan=5)
     ax = sns.heatmap(plotcomb.iloc[[0]].to_numpy(), cmap='bwr', annot=False, yticklabels=False,
                      xticklabels=False, cbar=False, center=plotcomb.iloc[0].mean())
 
     #Label for IC or CIC and p-values on right of target heatmap.
-    ax = plt.subplot2grid(shape=shape_fig, loc=(0, 120), colspan=colspan_IC,rowspan=rowspan_feature)
+    ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=(0, 120), colspan=12,rowspan=5)
     ax.set_axis_off()
     if if_bootstrap == True:
         ax.text(0.5,0.5,'CIC(Δ)',ha='center', va='center',color='blue')
     else:
         ax.text(0.5,0.5,'CIC',ha='center', va='center',color='blue')
-    ax = plt.subplot2grid(shape=shape_fig, loc=(0, 132), colspan=colspan_bootstrap,rowspan=rowspan_feature)
+    ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=(0, 132), colspan=10,rowspan=5)
     ax.set_axis_off()
     if plotpval == True:
         ax.text(0.5,0.5,'p-value',ha='center', va='center')
 
     #Label seed name at left of seed heatmap
-    ax = plt.subplot2grid(shape=shape_fig, loc=(5, 0), colspan=colspan_name,rowspan=rowspan_feature)
+    ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=(5, 0), colspan=30,rowspan=5)
     ax.set_axis_off()
     if seed_name != None:
         if len(seed_name) > 1:
@@ -2615,21 +2583,21 @@ def savetopfig(
         ax.text(0.9,0.5, 'Seed', ha='right', va='center')
 
     #Plot seed heatmap
-    ax = plt.subplot2grid(shape=shape_fig, loc=(5, 30), colspan=colspan_heatmap,rowspan=rowspan_feature)
+    ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=(5, 30), colspan=90,rowspan=5)
     ax = sns.heatmap(np.array([cythonseed]), cmap=seedcmap, annot=False, yticklabels=False,
                      xticklabels=False, cbar=False)
 
     #Blanks
-    ax = plt.subplot2grid(shape=shape_fig, loc=(5, 120), colspan=colspan_IC,rowspan=rowspan_feature)
+    ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=(5, 120), colspan=12,rowspan=5)
     ax.set_axis_off()
-    ax = plt.subplot2grid(shape=shape_fig, loc=(5, 132), colspan=colspan_bootstrap,rowspan=rowspan_feature)
+    ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=(5, 132), colspan=10,rowspan=5)
     ax.set_axis_off()
 
     #Loop to plot top features one by one
     for i in range(1,len(CICs)):
 
         #Label name of picked feature in this round
-        ax = plt.subplot2grid(shape=shape_fig, loc=((i+1)*5, 0), colspan=colspan_name,rowspan=rowspan_feature)
+        ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=((i+1)*5, 0), colspan=30,rowspan=5)
         ax.set_axis_off()
         if piled == True and pilesize[i-1] > 1:
             ax.text(0.9,0.5,plotcomb.index.tolist()[i] +' '+ locusdic[plotcomb.index.tolist()[i]] +
@@ -2660,24 +2628,12 @@ def savetopfig(
                         ha='right', va='center')
 
         #Plot heatmap for picked feature
-        ax = plt.subplot2grid(shape=shape_fig, loc=((i+1)*5, 30), colspan=colspan_heatmap,rowspan=rowspan_feature)
-        # ax = sns.heatmap(np.asarray([plotcomb.iloc[i].tolist()]).astype(int), cmap=featurecmap,
-        #                  annot=False, yticklabels=False, xticklabels=False, cbar=False)
-        ax.set_facecolor("#9BEDFF")
-        ax = sns.heatmap(np.asarray([0]*len(plotcomb.columns)).reshape(-1, 1),
-                         cmap=featurecmap, annot=False, yticklabels=False, xticklabels=False, cbar=False)
-        density = plotcomb.iloc[i].sum()/len(plotcomb.columns)
-        if density > 0.05:
-            density = 0.05
-        local_linewidth = 1/(120 * density + 3)
-        for j in range(len(plotcomb.columns)):
-            if plotcomb.iloc[i].tolist()[j] == 1:
-                ax.plot((j, j), (0, 1), color='black', linewidth=local_linewidth)
-        ax.set_xlim(0, len(plotcomb.columns))
-        ax.set_ylim(0, 1)
+        ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=((i+1)*5, 30), colspan=90,rowspan=5)
+        ax = sns.heatmap(np.asarray([plotcomb.iloc[i].tolist()]).astype(int), cmap=featurecmap,
+                         annot=False, yticklabels=False, xticklabels=False, cbar=False)
 
         #Label CIC or IC for this feature
-        ax = plt.subplot2grid(shape=shape_fig, loc=((i+1)*5, 120), colspan=colspan_IC,rowspan=rowspan_feature)
+        ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=((i+1)*5, 120), colspan=12,rowspan=5)
         ax.set_axis_off()
         if if_bootstrap == True:
             ax.text(0.5,0.5,"%.3f(%s)"%(CICs[i],int(float(bootstraps[i]*1000))), ha='center', 
@@ -2686,7 +2642,7 @@ def savetopfig(
             ax.text(0.5,0.5,"%.3f"%(CICs[i]), ha='center', va='center',color='blue')
 
         #Label p-values if plotpval is True
-        ax = plt.subplot2grid(shape=shape_fig, loc=((i+1)*5, 132), colspan=colspan_bootstrap,rowspan=rowspan_feature)
+        ax = plt.subplot2grid(shape=(5*(len(CICs)+2),142), loc=((i+1)*5, 132), colspan=10,rowspan=5)
         ax.set_axis_off()
         if plotpval == True:
             if pval > 1:
@@ -2701,7 +2657,7 @@ def savetopfig(
 
     #Save Plot
     plt.savefig(out_folder + prefix+'_itr'+str(nitr)+'_Top'+str(num_top)+'_Result.'+figure_format,
-                format=figure_format, dpi=600)
+                format=figure_format)
     plt.close()
     
     #Set new line of gene locus  to ,
@@ -2935,9 +2891,9 @@ def saveresfigWithPval(
             pvallist = ("%e"%pval).split('e')
             ax.text(0.5,0.5,"%.1fx${10^{%s}}$"%(float(pvallist[0]),int(pvallist[1])),
                     ha='center', va='center')
-
+        
     #Save plot
-    plt.savefig(out_folder + prefix+'_Result.'+figure_format,format=figure_format, dpi=600)
+    plt.savefig(out_folder + prefix+'_Result.'+figure_format,format=figure_format)
     plt.close()
     
     #Set new line of gene locus  to ,
@@ -3123,258 +3079,7 @@ def saveresfig(
             ax.text(0.5,0.5,"%.3f"%(CICs[(i-1)*2+2]), ha='center', va='center')
 
     #Save figure 
-    plt.savefig(out_folder + prefix+'_Result.'+figure_format,format=figure_format, dpi=600)
-    plt.close()
-    
-    #Set new line of gene locus  to ,
-    reportdf.index = reportdf.index.str.replace("\n", ",")
-
-    #Adjust length of CIC/IC
-    reportdf['CICs'] = [''] + CICs
-
-    #Put bootstrap to report
-    if if_bootstrap == True:
-        for i in range(len(bootstraps)):
-            if bootstraps[i] != '':
-                bootstraps[i] = 1000*bootstraps[i]
-        reportdf['bootstrap'] = [''] + bootstraps
-    
-    if (gmt is not None) and (all(elem in gmt.index.tolist() for elem in seedids) == True):
-        gmt.loc[seedids].to_csv(out_folder + prefix+'_Result.gmt',sep='\t',header=False)
-
-    #Save report
-    reportdf.to_csv(out_folder + prefix+'_Result.txt',sep='\t')
-
-def saveresfig_3(
-    plotcomb,       #Dataframe used to plot 
-    seedids,        #List of name of feature picked 
-    CICs,           #List of CIC\IC values
-    seedlists,      #List of seeds
-    seedcmap,       #Cmap for seed heatmap
-    featurecmap,    #Cmap for feature heatmap
-    prefix,         #Prefix for file generated
-    figure_format,  #Format for result figure
-    bootstraps,     #List of ootstrap values
-    out_folder,     #Name of output folder
-    target_name,    #Name of target
-    seed_name,      #Name of original seed
-    locusdic,
-    gmt,
-    linewidth
-    ):
-
-    '''
-    Function to save result summary figure without p-values. 
-    '''
-
-    rowspan_seed = 2
-    rowspan_feature = 3
-    colspan_name = 20
-    colspan_heatmap = 90
-    colspan_IC = 12
-    colspan_bootstrap = 12
-    shape_fig = (rowspan_feature*(len(seedids)+2) + rowspan_seed*(len(seedids)), 
-        colspan_name + colspan_heatmap + colspan_IC + colspan_bootstrap)
-
-    if linewidth == None:
-        # linewidth = len(plotcomb.columns)/2000.0
-        linewidth = 0.5
-
-    #Check if bootstrap value is calculated
-    if_bootstrap = False
-    if len(bootstraps) != 0:
-        if_bootstrap = True
-    
-    #Create dataframe to write down report
-    reportdf = pd.DataFrame(columns=plotcomb.columns.tolist())
-    
-    #Prepare canvas for result figure
-    fig = plt.figure()
-    fig.set_figheight((len(seedids)+1)/2)
-    fig.set_figwidth(13.4)
-
-    #Add Target row for report
-    reportdf.loc['Target'] = plotcomb.iloc[0].tolist()
-
-    locinfo = (0,0)
-
-    #Target name at left of target heatmap
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_name,rowspan=rowspan_feature)
-    ax.set_axis_off()
-    ax.text(0.9,0.5, 'Target:'+str(target_name), ha='right', va='center')
-    locinfo = updateloc(locinfo, 0, colspan_name)
-
-    #Plot heatmap for target
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_heatmap,rowspan=rowspan_feature)
-    ax = sns.heatmap(plotcomb.iloc[[0]].to_numpy(), cmap='bwr', annot=False, yticklabels=False,
-                     xticklabels=False, cbar=False, center=plotcomb.iloc[0].mean())
-    locinfo = updateloc(locinfo, 0, colspan_heatmap)
-
-    #Label for IC and CIC on right of target heatmap.
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_IC,rowspan=rowspan_feature)
-    ax.set_axis_off()
-    if if_bootstrap == True:
-        ax.text(0.5,0.5,'IC(Δ)',ha='center', va='center')
-    else:
-        ax.text(0.5,0.5,'IC',ha='center', va='center')
-    locinfo = updateloc(locinfo, 0, colspan_IC)
-
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_bootstrap,rowspan=rowspan_feature)
-    ax.set_axis_off()
-    if if_bootstrap == True:
-        ax.text(0.5,0.5,'CIC(Δ)',ha='center', va='center',color = 'blue')
-    else:
-        ax.text(0.5,0.5,'CIC',ha='center', va='center',color = 'blue')
-    
-    #Add seed row for report
-    reportdf.loc['Seed'] = seedlists[0]
-
-    locinfo = updateloc(locinfo, rowspan_feature, 0, resetcol = True)
-    #Label Seed name at left of seed heatmap
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_name,rowspan=rowspan_feature)
-    ax.set_axis_off()
-    if seed_name != None:
-        if len(seed_name) > 1:
-            ax.text(0.9,0.5, 'Seed:'+str(seed_name[0])+',...', ha='right', va='center')
-        else:
-            ax.text(0.9,0.5, 'Seed:'+str(seed_name[0]), ha='right', va='center')
-    else:
-        ax.text(0.9,0.5, 'Seed', ha='right', va='center')
-
-    locinfo = updateloc(locinfo, 0, colspan_name)
-    #Plot seed heatmap
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_heatmap,rowspan=rowspan_feature)
-    ax.set_facecolor("#E5E5E5")
-    ax = sns.heatmap(np.asarray([0]*len(plotcomb.columns)).reshape(-1, 1),
-                         cmap=seedcmap,annot=False,yticklabels=False,xticklabels=False,cbar=False)
-    density = seedlists[0].count(1)/len(plotcomb.columns)
-    if density > 0.05:
-        density = 0.05
-    local_linewidth = 1/(120 * density + 3)
-    for j in range(len(plotcomb.columns)):
-        if seedlists[0][j] == 1:
-            ax.plot((j, j), (0, 1), color='black', linewidth=local_linewidth)
-    ax.set_xlim(0, len(plotcomb.columns))
-    ax.set_ylim(0, 1)
-
-    locinfo = updateloc(locinfo, 0, colspan_heatmap)
-    #CIC for seed if seed exists
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_IC,rowspan=rowspan_feature)
-    ax.set_axis_off()
-    if isinstance(CICs[0],float) == True and if_bootstrap == True:
-        ax.text(0.5,0.5,"%.3f(%s)"%(CICs[0], int(bootstraps[0]*1000)), ha='center', va='center')
-    elif isinstance(CICs[0],float) == True:
-        ax.text(0.5,0.5,"%.3f"%(CICs[0]), ha='center', va='center')
-
-    locinfo = updateloc(locinfo, 0, colspan_IC)
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_bootstrap,rowspan=rowspan_feature)
-    ax.set_axis_off()
-        
-    locinfo = updateloc(locinfo, rowspan_feature, 0, resetcol = True)
-    #Loop to plot best feature and new seeds.
-    for i in range(1,len(seedids)+1):
-
-        #Label name of picked feature in this round
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_name,rowspan=rowspan_feature)
-        ax.set_axis_off()
-        if (gmt is not None) and (seedids[(i-1)] in gmt.index.tolist()):
-            if locusdic != None: 
-                ax.text(0.9,0.5,seedids[(i-1)] +' '+ locusdic[seedids[(i-1)]] + 
-                    '(' + str(sum(gmt.loc[seedids[(i-1)]].notna())) + ',' +
-                    str(plotcomb.loc[seedids[(i-1)]].tolist().count(1)) + ')', 
-                    ha='right', va='center')
-            else:
-                ax.text(0.9,0.5,seedids[(i-1)] + 
-                    '(' + str(sum(gmt.loc[seedids[(i-1)]].notna())) + ',' +
-                    str(plotcomb.loc[seedids[(i-1)]].tolist().count(1)) + ')', 
-                    ha='right', va='center')
-        else:
-            if locusdic != None: 
-                ax.text(0.9,0.5,seedids[(i-1)] +' '+ locusdic[seedids[(i-1)]] + 
-                    '(' +str(plotcomb.loc[seedids[(i-1)]].tolist().count(1)) + ')', 
-                    ha='right', va='center')
-            else:
-                ax.text(0.9,0.5,seedids[(i-1)] + '(' +
-                    str(plotcomb.loc[seedids[(i-1)]].tolist().count(1)) + ')', 
-                    ha='right', va='center')
-
-        #Add best feature row in report
-        reportdf.loc[seedids[i-1]] = plotcomb.loc[seedids[i-1]].tolist()
-        locinfo = updateloc(locinfo, 0, colspan_name)
-
-        #Plot heatmap for best feature
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_heatmap,rowspan=rowspan_feature)
-        ax.set_facecolor("#9BEDFF")
-        ax = sns.heatmap(np.asarray([0]*len(plotcomb.columns)).reshape(-1, 1),
-                         cmap=featurecmap, annot=False, yticklabels=False, xticklabels=False, cbar=False)
-        density = plotcomb.loc[seedids[i-1]].sum()/len(plotcomb.columns)
-        if density > 0.05:
-            density = 0.05
-        local_linewidth = 1/(120 * density + 2)
-        for j in range(len(plotcomb.columns)):
-            if plotcomb.loc[seedids[i-1]].tolist()[j] == 1:
-                ax.plot((j, j), (0, 1), color='black', linewidth=local_linewidth)
-        ax.set_xlim(0, len(plotcomb.columns))
-        ax.set_ylim(0, 1)
-        locinfo = updateloc(locinfo, 0, colspan_heatmap)
-        locinfo = updateloc(locinfo, 0, colspan_IC)
-
-        #Label CIC for this feature        
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_IC,rowspan=rowspan_feature)
-        ax.set_axis_off()
-        locinfo = updateloc(locinfo, 0, colspan_IC)
-        if if_bootstrap == True:
-            ax.text(0.5,0.5,"%.3f(%s)"%(CICs[(i-1)*2+1],int(1000*bootstraps[(i-1)*2+1])), 
-                    ha='center', va='center', color = 'blue')
-        else:
-            ax.text(0.5,0.5,"%.3f"%(CICs[(i-1)*2+1]), ha='center', va='center',color = 'blue')
-        locinfo = updateloc(locinfo, rowspan_feature, 0, resetcol = True)
-
-        # Label new seed
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_name,rowspan=rowspan_seed)
-        ax.set_axis_off()
-        ax.text(0.9,0.5,'New Seed', ha='right', va='center')
-        locinfo = updateloc(locinfo, 0, colspan_name)
-
-        #Put new seed into 
-        reportdf.loc['New Seed'+str(i)] = seedlists[i]
-
-        #Plot heatmap for new seed 
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_heatmap,rowspan=rowspan_seed)
-        ax.set_facecolor("#E5E5E5")
-        ax = sns.heatmap(np.asarray([0]*len(plotcomb.columns)).reshape(-1, 1),
-                         cmap=seedcmap,annot=False,yticklabels=False,xticklabels=False,cbar=False)
-        density = seedlists[i].count(1)/len(plotcomb.columns)
-        if density > 0.05:
-            density = 0.05
-        local_linewidth = 1/(120 * density + 3)
-
-        for j in range(len(plotcomb.columns)):
-            if seedlists[i][j] == 1:
-                ax.plot((j, j), (0, 1), color='black', linewidth=local_linewidth)
-        ax.set_xlim(0, len(plotcomb.columns))
-        ax.set_ylim(0, 1)
-
-        locinfo = updateloc(locinfo, 0, colspan_heatmap)
-
-        #Label IC for new seed
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_bootstrap,rowspan=rowspan_seed)
-        ax.set_axis_off()
-        if if_bootstrap == True:
-            ax.text(0.5,0.5,"%.3f(%s)"%(CICs[(i-1)*2+2],int(1000*bootstraps[(i-1)*2+2])), 
-                    ha='center', va='center')
-        else:
-            ax.text(0.5,0.5,"%.3f"%(CICs[(i-1)*2+2]), ha='center', va='center')
-        locinfo = updateloc(locinfo, rowspan_seed, 0, resetcol = True)
-
-    #Save figure 
-    plt.savefig(out_folder + prefix+'_Result.'+figure_format,format=figure_format, dpi = 600)
+    plt.savefig(out_folder + prefix+'_Result.'+figure_format,format=figure_format)
     plt.close()
     
     #Set new line of gene locus  to ,
@@ -3396,234 +3101,6 @@ def saveresfig_3(
     #Save report
     reportdf.to_csv(out_folder + prefix+'_Result.txt',sep='\t')
     
-
-def updateloc(locinfo, rowadd, coladd, resetcol = False):
-    if resetcol == True:
-        locinfo = list(locinfo)
-        locinfo[0] = locinfo[0] + rowadd
-        locinfo[1] = 0
-    else:
-        locinfo = list(locinfo)
-        locinfo[0] = locinfo[0] + rowadd
-        locinfo[1] = locinfo[1] + coladd
-    locinfo = tuple(locinfo)
-    return locinfo
-
-def saveresfig_2(
-    plotcomb,       #Dataframe used to plot 
-    seedids,        #List of name of feature picked 
-    CICs,           #List of CIC\IC values
-    seedlists,      #List of seeds
-    seedcmap,       #Cmap for seed heatmap
-    featurecmap,    #Cmap for feature heatmap
-    prefix,         #Prefix for file generated
-    figure_format,  #Format for result figure
-    bootstraps,     #List of ootstrap values
-    out_folder,     #Name of output folder
-    target_name,    #Name of target
-    seed_name,      #Name of original seed
-    locusdic,
-    gmt
-    ):
-
-    '''
-    Function to save result summary figure without p-values. 
-    '''
-
-    rowspan_seed = 3
-    rowspan_feature = 5
-    colspan_name = 20
-    colspan_heatmap = 90
-    colspan_IC = 12
-    colspan_bootstrap = 12
-    shape_fig = (rowspan_feature*(len(seedids)+2) + rowspan_seed*(len(seedids)), 
-        colspan_name + colspan_heatmap + colspan_IC + colspan_bootstrap)
-
-    #Check if bootstrap value is calculated
-    if_bootstrap = False
-    if len(bootstraps) != 0:
-        if_bootstrap = True
-    
-    #Create dataframe to write down report
-    reportdf = pd.DataFrame(columns=plotcomb.columns.tolist())
-    
-    #Prepare canvas for result figure
-    fig = plt.figure()
-    fig.set_figheight(len(seedids)+1)
-    fig.set_figwidth(13.4)
-
-    #Add Target row for report
-    reportdf.loc['Target'] = plotcomb.iloc[0].tolist()
-
-    locinfo = (0,0)
-
-    #Target name at left of target heatmap
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_name,rowspan=rowspan_feature)
-    ax.set_axis_off()
-    ax.text(0.9,0.5, 'Target:'+str(target_name), ha='right', va='center')
-    locinfo = updateloc(locinfo, 0, colspan_name)
-
-    #Plot heatmap for target
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_heatmap,rowspan=rowspan_feature)
-    ax = sns.heatmap(plotcomb.iloc[[0]].to_numpy(), cmap='bwr', annot=False, yticklabels=False,
-                     xticklabels=False, cbar=False, center=plotcomb.iloc[0].mean())
-    locinfo = updateloc(locinfo, 0, colspan_heatmap)
-
-    #Label for IC and CIC on right of target heatmap.
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_IC,rowspan=rowspan_feature)
-    ax.set_axis_off()
-    if if_bootstrap == True:
-        ax.text(0.5,0.5,'IC(Δ)',ha='center', va='center')
-    else:
-        ax.text(0.5,0.5,'IC',ha='center', va='center')
-    locinfo = updateloc(locinfo, 0, colspan_IC)
-
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_bootstrap,rowspan=rowspan_feature)
-    ax.set_axis_off()
-    if if_bootstrap == True:
-        ax.text(0.5,0.5,'CIC(Δ)',ha='center', va='center',color = 'blue')
-    else:
-        ax.text(0.5,0.5,'CIC',ha='center', va='center',color = 'blue')
-    
-    #Add seed row for report
-    reportdf.loc['Seed'] = seedlists[0]
-
-    locinfo = updateloc(locinfo, rowspan_feature, 0, resetcol = True)
-    #Label Seed name at left of seed heatmap
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_name,rowspan=rowspan_feature)
-    ax.set_axis_off()
-    if seed_name != None:
-        if len(seed_name) > 1:
-            ax.text(0.9,0.5, 'Seed:'+str(seed_name[0])+',...', ha='right', va='center')
-        else:
-            ax.text(0.9,0.5, 'Seed:'+str(seed_name[0]), ha='right', va='center')
-    else:
-        ax.text(0.9,0.5, 'Seed', ha='right', va='center')
-
-    locinfo = updateloc(locinfo, 0, colspan_name)
-    #Plot seed heatmap
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_heatmap,rowspan=rowspan_feature)
-    ax = sns.heatmap(np.array([seedlists[0]]),cmap=seedcmap,annot=False,yticklabels=False,
-                     xticklabels=False,cbar=False)
-
-    locinfo = updateloc(locinfo, 0, colspan_heatmap)
-    #CIC for seed if seed exists
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_IC,rowspan=rowspan_feature)
-    ax.set_axis_off()
-    if isinstance(CICs[0],float) == True and if_bootstrap == True:
-        ax.text(0.5,0.5,"%.3f(%s)"%(CICs[0], int(bootstraps[0]*1000)), ha='center', va='center')
-    elif isinstance(CICs[0],float) == True:
-        ax.text(0.5,0.5,"%.3f"%(CICs[0]), ha='center', va='center')
-
-    locinfo = updateloc(locinfo, 0, colspan_IC)
-    ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, colspan=colspan_bootstrap,rowspan=rowspan_feature)
-    ax.set_axis_off()
-        
-    locinfo = updateloc(locinfo, rowspan_feature, 0, resetcol = True)
-    #Loop to plot best feature and new seeds.
-    for i in range(1,len(seedids)+1):
-
-        #Label name of picked feature in this round
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_name,rowspan=rowspan_feature)
-        ax.set_axis_off()
-        if (gmt is not None) and (seedids[(i-1)] in gmt.index.tolist()):
-            if locusdic != None: 
-                ax.text(0.9,0.5,seedids[(i-1)] +' '+ locusdic[seedids[(i-1)]] + 
-                    '(' + str(sum(gmt.loc[seedids[(i-1)]].notna())) + ',' +
-                    str(plotcomb.loc[seedids[(i-1)]].tolist().count(1)) + ')', 
-                    ha='right', va='center')
-            else:
-                ax.text(0.9,0.5,seedids[(i-1)] + 
-                    '(' + str(sum(gmt.loc[seedids[(i-1)]].notna())) + ',' +
-                    str(plotcomb.loc[seedids[(i-1)]].tolist().count(1)) + ')', 
-                    ha='right', va='center')
-        else:
-            if locusdic != None: 
-                ax.text(0.9,0.5,seedids[(i-1)] +' '+ locusdic[seedids[(i-1)]] + 
-                    '(' +str(plotcomb.loc[seedids[(i-1)]].tolist().count(1)) + ')', 
-                    ha='right', va='center')
-            else:
-                ax.text(0.9,0.5,seedids[(i-1)] + '(' +
-                    str(plotcomb.loc[seedids[(i-1)]].tolist().count(1)) + ')', 
-                    ha='right', va='center')
-
-        #Add best feature row in report
-        reportdf.loc[seedids[i-1]] = plotcomb.loc[seedids[i-1]].tolist()
-        locinfo = updateloc(locinfo, 0, colspan_name)
-
-        #Plot heatmap for best feature
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_heatmap,rowspan=rowspan_feature)
-        ax = sns.heatmap(np.asarray([plotcomb.loc[seedids[i-1]].tolist()]).astype(int),
-                         cmap=featurecmap, annot=False, yticklabels=False, xticklabels=False, cbar=False)
-        locinfo = updateloc(locinfo, 0, colspan_heatmap)
-        locinfo = updateloc(locinfo, 0, colspan_IC)
-
-        #Label CIC for this feature        
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_IC,rowspan=rowspan_feature)
-        ax.set_axis_off()
-        locinfo = updateloc(locinfo, 0, colspan_IC)
-        if if_bootstrap == True:
-            ax.text(0.5,0.5,"%.3f(%s)"%(CICs[(i-1)*2+1],int(1000*bootstraps[(i-1)*2+1])), 
-                    ha='center', va='center', color = 'blue')
-        else:
-            ax.text(0.5,0.5,"%.3f"%(CICs[(i-1)*2+1]), ha='center', va='center',color = 'blue')
-        locinfo = updateloc(locinfo, rowspan_feature, 0, resetcol = True)
-
-        # Label new seed
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_name,rowspan=rowspan_seed)
-        ax.set_axis_off()
-        ax.text(0.9,0.5,'New Seed', ha='right', va='center')
-        locinfo = updateloc(locinfo, 0, colspan_name)
-
-        #Put new seed into 
-        reportdf.loc['New Seed'+str(i)] = seedlists[i]
-
-        #Plot heatmap for new seed 
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_heatmap,rowspan=rowspan_seed)
-        ax = sns.heatmap(np.array([seedlists[i]]),cmap=seedcmap,annot=False,yticklabels=False,
-                         xticklabels=False,cbar=False)
-        locinfo = updateloc(locinfo, 0, colspan_heatmap)
-
-        #Label IC for new seed
-        ax = plt.subplot2grid(shape=shape_fig, loc=locinfo, 
-                              colspan=colspan_bootstrap,rowspan=rowspan_seed)
-        ax.set_axis_off()
-        if if_bootstrap == True:
-            ax.text(0.5,0.5,"%.3f(%s)"%(CICs[(i-1)*2+2],int(1000*bootstraps[(i-1)*2+2])), 
-                    ha='center', va='center')
-        else:
-            ax.text(0.5,0.5,"%.3f"%(CICs[(i-1)*2+2]), ha='center', va='center')
-        locinfo = updateloc(locinfo, rowspan_seed, 0, resetcol = True)
-
-    #Save figure 
-    plt.savefig(out_folder + prefix+'_Result.'+figure_format,format=figure_format, dpi=600)
-    plt.close()
-    
-    #Set new line of gene locus  to ,
-    reportdf.index = reportdf.index.str.replace("\n", ",")
-
-    #Adjust length of CIC/IC
-    reportdf['CICs'] = [''] + CICs
-
-    #Put bootstrap to report
-    if if_bootstrap == True:
-        for i in range(len(bootstraps)):
-            if bootstraps[i] != '':
-                bootstraps[i] = 1000*bootstraps[i]
-        reportdf['bootstrap'] = [''] + bootstraps
-    
-    if (gmt is not None) and (all(elem in gmt.index.tolist() for elem in seedids) == True):
-        gmt.loc[seedids].to_csv(out_folder + prefix+'_Result.gmt',sep='\t',header=False)
-
-    #Save report
-    reportdf.to_csv(out_folder + prefix+'_Result.txt',sep='\t')
-    
-
 def topMatches(
     comb,           #Dataframe contain target and features
     y,              #Target
@@ -3678,8 +3155,8 @@ def seedcomball(
 
 def readInput(
     target_file,    #Name of target file
-    feature_files,   #Name of feature file
-    seed_files,      #Name of seed file
+    feature_file,   #Name of feature file
+    seed_file,      #Name of seed file
     seed_name,      #List of seed name(s)
     target_name,    #Target name
     direction,      #Direction to sort target
@@ -3690,12 +3167,10 @@ def readInput(
     gene_set,
     gene_separator,
     thread_number,
-    tissue_file,
-    feature_remove,
-    feature_set
+    tissue_file
     ):
     
-    #print('seed_file is' + str(seed_file))
+    print('seed_file is' + seed_file)
 
     '''
     Function to read input files to generate combined dataframe
@@ -3716,70 +3191,42 @@ def readInput(
 
     #Read seed file and feature file and extract seed. If same, read only one
     if tissue_file:
-        if seed_files == feature_files:
-            features = []
-            for feature_file in feature_files:
-                onefeature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
-                onefeature = onefeature.drop(columns=onefeature.columns[0])
-                onefeature.columns = onefeature.columns.str.replace("-", "_")
-                features.append(onefeature)
-            feature = pd.concat(features).fillna(0)
+        if seed_file == feature_file:
+            feature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
+            feature = feature.drop(columns=feature.columns[0])
+            feature.columns = feature.columns.str.replace("-", "_")
             patient = pd.read_csv(tissue_file,skiprows=[0,1],sep='\t',index_col=0)
             patient = patient.drop(columns=patient.columns[0])
             patient.columns = patient.columns.str.replace("-", "_")
-            commoncol = list(set(target.columns)&set(feature.columns))
+            commoncol = list(set(target.columns)&set(feature.columns)&set(patient.columns))
             comb = pd.concat([target,feature],  join='inner')
             comb = comb[commoncol]
         else:
-            features = []
-            for feature_file in feature_files:
-                onefeature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
-                onefeature = onefeature.drop(columns=onefeature.columns[0])
-                onefeature.columns = onefeature.columns.str.replace("-", "_")
-                features.append(onefeature)
-            feature = pd.concat(features).fillna(0)
-            seeds = []
-            for seed_file in seed_files:
-                oneseed = pd.read_csv(seed_file,skiprows=[0,1],sep='\t',index_col=0)
-                oneseed = oneseed.drop(columns=oneseed.columns[0])
-                oneseed.columns = oneseed.columns.str.replace("-", "_")
-                seeds.append(oneseed)
-            seed_df = pd.concat(seeds).fillna(0)
-            seed_df.columns = seed_df.columns.str.replace("-", "_")
-            seed_df = seed_df.loc[seed_name]
+            feature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
+            feature = feature.drop(columns=feature.columns[0])
+            seed_df = pd.read_csv(seed_file,skiprows=[0,1],sep='\t',index_col=0)
+            seed_df = seed_df.drop(columns=seed_df.columns[0]).loc[seed_name]
             patient = pd.read_csv(tissue_file,skiprows=[0,1],sep='\t',index_col=0)
             patient = patient.drop(columns=patient.columns[0])
             patient.columns = patient.columns.str.replace("-", "_")
             feature.columns = feature.columns.str.replace("-", "_")
-            commoncol = list(set(target.columns)&set(seed_df.columns)&set(feature.columns))
+            seed_df.columns = seed_df.columns.str.replace("-", "_")
+            seed_df = seed_df.dropna(axis=1)
+            commoncol = list(set(target.columns)&set(seed_df.columns)&set(feature.columns)&set(patient.columns))
             comb = pd.concat([target,seed_df,feature],  join='inner')
             comb = comb[commoncol]
     else:
-        if seed_files == feature_files:
-            features = []
-            for feature_file in feature_files:
-                onefeature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
-                onefeature = onefeature.drop(columns=onefeature.columns[0])
-                onefeature.columns = onefeature.columns.str.replace("-", "_")
-                features.append(onefeature)
-            feature = pd.concat(features).fillna(0)
+        if seed_file == feature_file:
+            feature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
+            feature = feature.drop(columns=feature.columns[0])
+            feature.columns = feature.columns.str.replace("-", "_")
             comb = pd.concat([target,feature],  join='inner')
         else:
-            features = []
-            for feature_file in feature_files:
-                onefeature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
-                onefeature = onefeature.drop(columns=onefeature.columns[0])
-                onefeature.columns = onefeature.columns.str.replace("-", "_")
-                features.append(onefeature)
-            feature = pd.concat(features).fillna(0)
-            seeds = []
-            for seed_file in seed_files:
-                oneseed = pd.read_csv(seed_file,skiprows=[0,1],sep='\t',index_col=0)
-                oneseed = oneseed.drop(columns=oneseed.columns[0])
-                oneseed.columns = oneseed.columns.str.replace("-", "_")
-                seeds.append(oneseed)
-            seed_df = pd.concat(seeds).fillna(0)
-            seed_df = seed_df.loc[seed_name]
+            feature = pd.read_csv(feature_file,skiprows=[0,1],sep='\t',index_col=0)
+            feature = feature.drop(columns=feature.columns[0])
+            seed_df = pd.read_csv(seed_file,skiprows=[0,1],sep='\t',index_col=0)
+            seed_df = seed_df.drop(columns=seed_df.columns[0]).loc[seed_name]
+            seed_df = seed_df.dropna(axis=1)
             feature.columns = feature.columns.str.replace("-", "_")
             seed_df.columns = seed_df.columns.str.replace("-", "_")
             comb = pd.concat([target,seed_df,feature],  join='inner')
@@ -3790,10 +3237,6 @@ def readInput(
             print('subset not exist! Please check your subset list.')
             sys.exit(1)
         comb = comb[list(set(comb.columns.tolist())&set(subset))]
-
-    # Remove feature
-    if feature_remove:
-        comb = comb.drop(index=feature_remove)
 
     #Sort whole dataframe by target by direction
     if direction == 'neg':
@@ -3846,12 +3289,6 @@ def readInput(
         currentseed = seedcomball(comb,newseed_names)
         comb = comb.drop(index=newseed_names)
         comb.loc['firstseed'] = currentseed
-        idx = [comb.index.tolist()[0], 'firstseed'] + [i for i in comb.index.tolist()[1:] if i != 'firstseed']
-        comb = comb.loc[idx]
-        if feature_set != None:
-            selectrow = list(set(comb.index.tolist()) & set(feature_set))
-            selectrow = [target_name] + ['firstseed'] + selectrow
-            comb = comb.loc[selectrow]
         if gene_set != None:
             inset_list = []
             for feature_name in comb.index.tolist()[2:]:
@@ -3859,16 +3296,13 @@ def readInput(
             inset_list = [True,True]+inset_list
             comb = comb.iloc[inset_list]
     else:
-        if feature_set != None:
-            selectrow = list(set(comb.index.tolist()) & set(feature_set))
-            selectrow = [target_name] + selectrow
-            comb = comb.loc[selectrow]
         if gene_set != None:
             inset_list = []
             for feature_name in comb.index.tolist()[1:]:
                 inset_list.append(check_inset(gene_set,feature_name,gene_separator))
             inset_list = [True]+inset_list
             comb = comb.iloc[inset_list]
+            
 
     print('Done reading input files')
     
