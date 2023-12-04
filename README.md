@@ -16,30 +16,41 @@ Example of using REVEALER2 in jupyter notebook can be found [here](example_noteb
 
 REVEALER2 is separated into two parts: REVEALER_preprocess and REVEALER. If you start with MAF file or GCT file that you want to have a further filtering, then you should run REVEALER_process and then use output as input for REVEALER. If you have ready-to-use GCT format matrix, then you can directly run REVEALER. Explanation and general usage about REVEALER_preprocess and REVEALER is provided below.
 
-## REVEALER preprocess
+## REVEALER Example
 
-For the preprocessing step, there are few modes available. Detailed explanations of different mode is available in GenePattern documentation. Below are example codes for different mode. Files used in following examples can be found here(link to input files.)
+For the preprocessing step, there are few modes available. Detailed explanations of different mode is available in GenePattern documentation. Below are example codes for different mode. 
 
-Run with default mode on TCGA MAF data:
+Following is command line version of the example in the [here](example_notebook/REVEALER_Example.ipynb).
+
+First, download example input file for CCLE dataset maf file from this link [https://depmap.org/portal/download/all/?releasename=DepMap+Public+23Q2&filename=OmicsSomaticMutations.csv](https://depmap.org/portal/download/all/?releasename=DepMap+Public+23Q2&filename=OmicsSomaticMutations.csv) then put in sample_input folder(or anywhere as long as you indicate in command).
+
+## Run file preprocessing:
 
 ```bash
 $ REVEALER_preprocess \
-	-m class \
-	-i tcga_pancancer_082115.vep.filter_whitelisted.maf \
-	-pi HGVSp_Short
+	--mode class \
+	--input_file example_notebook/sample_input/OmicsSomaticMutations.csv \
+	--protein_change_identifier ProteinChange \
+	--file_separator , \
+	--col_genename HugoSymbol \
+	--col_class VariantType \
+	--col_sample ModelID \
+	--prefix CCLE \
+	--out_folder example_notebook/sample_input/CCLE
 ```
 
-Run with weight compared to NFE2L2 pathway enrichment value:
+## Run REVEALER with generated file and NFE2L2 signature:
 
 ```bash
-$ REVEALER_preprocess \
-	-m weight \
-	-i tcga_pancancer_082115.vep.filter_whitelisted.maf \
-	-pi HGVSp_Short \
-	-p TCGA_NFE2L2 \
-	-o featureFiles/ \
-	-wt 0.02 \
-	-pf TCGA_NFE2L2.gct \
-	-pn NFE2L2.V2 \
-	-nm False
+$ REVEALER \
+	--target_file example_notebook/sample_input/CCLE_complete_sigs.gct
+	--feature_file example_notebook/sample_input/CCLE_class.gct
+	--seed_name NFE2L2_Mut_All
+	--out_folder example_notebook/sample_output/NRF2
+	--prefix CCLE_NRF2
+	--target_name NFE2L2.V2
+	--if_pvalue False
+	--if_bootstrap False
+	--gene_locus example_notebook/sample_input/allgeneLocus.txt
+	--tissue_file example_notebook/sample_input/TissueType_CCLE.gct
 ```
