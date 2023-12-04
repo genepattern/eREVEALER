@@ -10,7 +10,7 @@ REVEALER2 can be used in command line, jupyter notebook, and GenePattern. To use
 $ pip install revealer
 ```
 
-Example of using REVEALER2 in jupyter notebook can be found [here][example_notebook/REVEALER_Example.ipynb]. REVEALER2 can also be found in GenePattern and directly run on GenePattern server. Details can be found here(link to genepattern module to be added).
+Example of using REVEALER2 in jupyter notebook can be found [here](example_notebook/REVEALER_Example.ipynb). REVEALER2 can also be found in GenePattern and directly run on GenePattern server. Details can be found here(link to genepattern module to be added).
 
 ##
 
