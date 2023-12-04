@@ -64,11 +64,18 @@ def main():
                         help="If output file should be gzipped.", metavar="GZIP") 
     optional.add_argument("-cb", "--combine", dest="combine",
                         help="Combine alleles by gene when making figures", metavar="COMBINE") 
+    required.add_argument("-cg", "--col_genename", dest="col_genename",
+                        help="column with gene name information.", metavar="COL_GENENAME")
+    required.add_argument("-cc", "--col_class", dest="col_class",
+                        help="column with class information.", metavar="COL_CLASS")
+    required.add_argument("-csa", "--col_sample", dest="col_sample",
+                        help="column with sample name information.", metavar="COL_SAMPLE")
+
 
     args = parser.parse_args()
     args = vars(args)
 
-    if args['input_file'][-3:] != 'gct' and args['input_file'][-3:] != 'maf':
+    if args['input_file'][-3:] != 'gct' and args['input_file'][-3:] != 'maf' and args['input_file'][-3:] != 'csv':
         print('only maf file and gct file are accepted as input, please check your input file.')
         sys.exit(1)
     else:

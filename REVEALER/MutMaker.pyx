@@ -850,7 +850,7 @@ cpdef produce_mutation_file(
     class_seperator = '_', # Separator between gene name and later information
     phenotype_name = 0, # Name of Phenotype, can be int or string
     file_separator = '\t', # Separator for file
-    protein_change_identifier = 'Protein_Change', # Identifier for protein change column
+    protein_change_identifier = 'Protein_Change',  # Identifier for protein change column
     mode = 'class', # Mode to run the program 
     direction = 'pos', # Direction of features matching phenotype
     frequency_threshold = 5, # Threshold for frequency
@@ -862,7 +862,7 @@ cpdef produce_mutation_file(
     out_folder='.', # Folder to put results
     ratio = float(1/3), # Ratio of selected features by weight that is acceptable
     verbose = 1,
-    sample_list = None,
+    sample_list = None, 
     total_ratio = 0.4, # Percentage of sample
     if_gmt = True,
     k = 5,
@@ -872,7 +872,10 @@ cpdef produce_mutation_file(
     thread_number = 1,
     neighborhood = 4,
     gzip = True,
-    combine = False # If allele figures are combined
+    combine = False, # If allele figures are combined
+    col_genename = 'Hugo_Symbol',
+    col_class = 'Variant_Classification',
+    col_sample = 'Tumor_Sample_Barcode'
     ):
 
     """
@@ -910,8 +913,8 @@ cpdef produce_mutation_file(
         if verbose > 0:
             print('Reading input file...')
         ds= pd.read_csv(maf_input_file, sep=file_separator, header=0, index_col=None, dtype=str)
-        ds=ds.loc[:,['Hugo_Symbol','Variant_Classification', 'Tumor_Sample_Barcode', protein_change_identifier]]
-        ds = ds[ds['Variant_Classification'].notna()]
+        ds=ds.loc[:,[col_genename,col_class, col_sample, protein_change_identifier]]
+        ds = ds[ds[col_class].notna()]
         ds = ds[ds[protein_change_identifier].notna()]
 
         # This part is ran when mode is class or all
@@ -922,7 +925,7 @@ cpdef produce_mutation_file(
                     print('Start getting sample information.')
                 # Make list of sample and its unique index
                 sample_set=set()
-                for i in ds['Tumor_Sample_Barcode']:
+                for i in ds[col_sample]:
                     sample_set.add(i)
                 sample_list = list(sample_set)
             else:
@@ -930,17 +933,17 @@ cpdef produce_mutation_file(
                     print('Start getting sample information.')
                 # Make list of sample and its unique index
                 sample_set=set()
-                for i in ds['Tumor_Sample_Barcode']:
+                for i in ds[col_sample]:
                     sample_set.add(i)
                 sample_set = set(sample_list)&sample_set
                 sample_list = list(sample_set)
 
             # Make gene list with all gene if no gene list input, find intersection if gene list is passed
             if gene_list == None:
-                gene_list = ds['Hugo_Symbol'].unique().tolist()
+                gene_list = ds[col_genename].unique().tolist()
             else:
                 inte = []
-                allgene = ds['Hugo_Symbol'].unique().tolist()
+                allgene = ds[col_genename].unique().tolist()
                 for i in gene_list:
                     if i in allgene:
                         inte.append(i)
@@ -968,8 +971,8 @@ cpdef produce_mutation_file(
                 countgene += 1
                 if verbose > 1:
                     print(gene + ' ' + str(countgene)+'/'+str(len(gene_list)))
-                for classification in ds[ds['Hugo_Symbol'] == gene]['Variant_Classification'].unique().tolist():
-                    for allele in ds[(ds['Hugo_Symbol'] == gene) & (ds['Variant_Classification'] == classification)][protein_change_identifier].unique().tolist():
+                for classification in ds[ds[col_genename] == gene][col_class].unique().tolist():
+                    for allele in ds[(ds[col_genename] == gene) & (ds[col_class] == classification)][protein_change_identifier].unique().tolist():
                         if gene not in geneclassallelepair.keys():
                             geneclassallelepair[gene] = {}
                             geneclassallelepair[gene][gene+'_Mut_All'] = [gene+'_'+allele]
@@ -981,8 +984,8 @@ cpdef produce_mutation_file(
 
             if verbose > 0:
                 print('Start creating mutation dataframe.')
-            for i in ds[ds['Hugo_Symbol'].isin(gene_list)].index.tolist():
-                restable.loc[ds.loc[i]['Hugo_Symbol']+'_Mut_All',ds.loc[i]['Tumor_Sample_Barcode']] = 1
+            for i in ds[ds[col_genename].isin(gene_list)].index.tolist():
+                restable.loc[ds.loc[i][col_genename]+'_Mut_All',ds.loc[i][col_sample]] = 1
 
             # If make figure is True, make one figure with all instances by gene
             if make_figure == True:
@@ -1047,7 +1050,7 @@ cpdef produce_mutation_file(
                 if verbose > 0:
                     print('Start getting sample information.')
                 sample_set=set()
-                for i in ds['Tumor_Sample_Barcode']:
+                for i in ds[col_sample]:
                     sample_set.add(i)
                 sample_list = list(sample_set)
             else:
@@ -1055,17 +1058,17 @@ cpdef produce_mutation_file(
                     print('Start getting sample information.')
                 # Make list of sample and its unique index
                 sample_set=set()
-                for i in ds['Tumor_Sample_Barcode']:
+                for i in ds[col_sample]:
                     sample_set.add(i)
                 sample_set = set(sample_list)&sample_set
                 sample_list = list(sample_set)
 
             # Make gene list with all gene if no gene list input, find intersection if gene list is passed
             if gene_list == None:
-                gene_list = ds['Hugo_Symbol'].unique().tolist()
+                gene_list = ds[col_genename].unique().tolist()
             else:
                 inte = []
-                allgene = ds['Hugo_Symbol'].unique().tolist()
+                allgene = ds[col_genename].unique().tolist()
                 for i in gene_list:
                     if i in allgene:
                         inte.append(i)
@@ -1090,9 +1093,9 @@ cpdef produce_mutation_file(
                 geneclasspair[gene] = []
                 geneclassallelepair[gene] = {}
                 geneclassallelepair[gene][gene+'_Mut_All'] = []
-                for classification in ds[ds['Hugo_Symbol'] == gene]['Variant_Classification'].unique().tolist():
+                for classification in ds[ds[col_genename] == gene][col_class].unique().tolist():
                     geneclassallelepair[gene][gene+'_'+classification] = []
-                    for allele in ds[(ds['Hugo_Symbol'] == gene) & (ds['Variant_Classification'] == classification)][protein_change_identifier].unique().tolist():
+                    for allele in ds[(ds[col_genename] == gene) & (ds[col_class] == classification)][protein_change_identifier].unique().tolist():
                         geneclassallelepair[gene][gene+'_'+classification].append(gene+'_'+allele)
                         geneclassallelepair[gene][gene+'_Mut_All'].append(gene+'_'+allele)
                     geneclasspair[gene].append(gene+'_'+classification)
@@ -1109,9 +1112,9 @@ cpdef produce_mutation_file(
 
             if verbose > 0:
                 print('Start creating mutation dataframe.')
-            for i in ds[ds['Hugo_Symbol'].isin(gene_list)].index.tolist():
-                restable.loc[ds.loc[i]['Hugo_Symbol']+'_'+ds.loc[i]['Variant_Classification'],ds.loc[i]['Tumor_Sample_Barcode']] = 1
-                restable.loc[ds.loc[i]['Hugo_Symbol']+'_Mut_All',ds.loc[i]['Tumor_Sample_Barcode']] = 1
+            for i in ds[ds[col_genename].isin(gene_list)].index.tolist():
+                restable.loc[ds.loc[i][col_genename]+'_'+ds.loc[i][col_class],ds.loc[i][col_sample]] = 1
+                restable.loc[ds.loc[i][col_genename]+'_Mut_All',ds.loc[i][col_sample]] = 1
 
             # If make figure is True, make one figure with all instances by gene
             if make_figure == True:
@@ -1175,7 +1178,7 @@ cpdef produce_mutation_file(
             # Read Phenotype and only keep intersecting rows.
             phenotype = pd.read_csv(phenotype_file,skiprows=[0,1],sep='\t',index_col=0).drop(columns=['Description'])
             phenotype.columns = phenotype.columns.str.replace("-", "_")
-            ds['Tumor_Sample_Barcode'].replace('-','_',regex=True,inplace=True)
+            ds[col_sample].replace('-','_',regex=True,inplace=True)
             if sample_list != None:
                 if verbose > 0:
                     print('Start getting sample information.')
@@ -1190,7 +1193,7 @@ cpdef produce_mutation_file(
                 if sample_list != None:
                     idlist = sample_list
                 else:
-                    idlist = ds['Tumor_Sample_Barcode'].unique().tolist()
+                    idlist = ds[col_sample].unique().tolist()
                 newcolnames = [] 
                 for i in phenotype.columns.tolist():
                     iffind = False
@@ -1227,7 +1230,7 @@ cpdef produce_mutation_file(
             if verbose > 0:
                 print('Extracting columns.')
             if sample_list == None:
-                sample_list = list(set(ds['Tumor_Sample_Barcode'].unique().tolist())&set(phenotype.columns.tolist()))
+                sample_list = list(set(ds[col_sample].unique().tolist())&set(phenotype.columns.tolist()))
             else:
                 sample_list = list(set(sample_list)&set(phenotype.columns.tolist()))
             phenotype = phenotype[sample_list]
@@ -1247,16 +1250,16 @@ cpdef produce_mutation_file(
             phenotype.iloc[0] = (np.array(phenotype.iloc[0].tolist()) - np.array(phenotype.iloc[0].tolist()).mean())/np.array(phenotype.iloc[0].tolist()).std()
             sample_set = phenotype.columns.tolist()
 
-            ds = ds[ds['Tumor_Sample_Barcode'].isin(list(sample_list))]
+            ds = ds[ds[col_sample].isin(list(sample_list))]
 
             # Make gene list with all gene if no gene list input, find intersection if gene list is passed
             if verbose > 0:
                 print('Extracting genes.')
             if gene_list == None:
-                gene_list = ds['Hugo_Symbol'].unique().tolist()
+                gene_list = ds[col_genename].unique().tolist()
             else:
                 inte = []
-                allgene = ds['Hugo_Symbol'].unique().tolist()
+                allgene = ds[col_genename].unique().tolist()
                 for i in gene_list:
                     if i in allgene:
                         inte.append(i)
@@ -1275,7 +1278,7 @@ cpdef produce_mutation_file(
                 countgene += 1
                 if verbose > 1:
                     print(gene + ' ' + str(countgene)+'/'+str(len(gene_list)))
-                for allele in ds[ds['Hugo_Symbol'] == gene][protein_change_identifier].unique().tolist():
+                for allele in ds[ds[col_genename] == gene][protein_change_identifier].unique().tolist():
                     if gene in geneallelepair.keys():
                         geneallelepair[gene].append(gene+'_'+allele)
                     else:
@@ -1289,8 +1292,8 @@ cpdef produce_mutation_file(
             restable = pd.DataFrame(0,index=allpairlist,columns=phenotype.columns.tolist())
             if verbose > 0:
                 print('Ceating mutation dataframe.')
-            for i in ds[ds['Hugo_Symbol'].isin(gene_list)].index.tolist():
-                restable.loc[ds.loc[i]['Hugo_Symbol']+'_'+ds.loc[i][protein_change_identifier],ds.loc[i]['Tumor_Sample_Barcode']] = 1
+            for i in ds[ds[col_genename].isin(gene_list)].index.tolist():
+                restable.loc[ds.loc[i][col_genename]+'_'+ds.loc[i][protein_change_identifier],ds.loc[i][col_sample]] = 1
 
             size = len(phenotype.iloc[0])
             y = np.ascontiguousarray(np.asarray(phenotype.iloc[0].tolist()))
@@ -1397,7 +1400,7 @@ cpdef produce_mutation_file(
             # Read Phenotype and only keep intersecting rows.
             phenotype = pd.read_csv(phenotype_file,skiprows=[0,1],sep='\t',index_col=0).drop(columns=['Description'])
             phenotype.columns = phenotype.columns.str.replace("-", "_")
-            ds['Tumor_Sample_Barcode'].replace('-','_',regex=True,inplace=True)
+            ds[col_sample].replace('-','_',regex=True,inplace=True)
             if sample_list != None:
                 sample_list_new = []
                 for i in sample_list:
@@ -1411,7 +1414,7 @@ cpdef produce_mutation_file(
                 # if sample_list != None:
                 #     idlist = sample_list
                 # else:
-                idlist = ds['Tumor_Sample_Barcode'].unique().tolist()
+                idlist = ds[col_sample].unique().tolist()
                 newcolnames = [] 
                 for i in phenotype.columns.tolist():
                     iffind = False
@@ -1446,7 +1449,7 @@ cpdef produce_mutation_file(
 
             # Take intersecting columns
             if sample_list == None:
-                sample_list = list(set(ds['Tumor_Sample_Barcode'].unique().tolist())&set(phenotype.columns.tolist()))
+                sample_list = list(set(ds[col_sample].unique().tolist())&set(phenotype.columns.tolist()))
             else:
                 sample_list = list(set(sample_list)&set(phenotype.columns.tolist()))
             phenotype = phenotype[sample_list]
@@ -1461,14 +1464,14 @@ cpdef produce_mutation_file(
             # phenotype.iloc[0] = (np.array(phenotype.iloc[0].tolist()) - np.array(phenotype.iloc[0].tolist()).mean())/np.array(phenotype.iloc[0].tolist()).std()
             sample_set = phenotype.columns.tolist()
 
-            ds = ds[ds['Tumor_Sample_Barcode'].isin(list(sample_list))]
+            ds = ds[ds[col_sample].isin(list(sample_list))]
 
             # Make gene list with all gene if no gene list input, find intersection if gene list is passed
             if gene_list == None:
-                gene_list = ds['Hugo_Symbol'].unique().tolist()
+                gene_list = ds[col_genename].unique().tolist()
             else:
                 inte = []
-                allgene = ds['Hugo_Symbol'].unique().tolist()
+                allgene = ds[col_genename].unique().tolist()
                 for i in gene_list:
                     if i in allgene:
                         inte.append(i)
@@ -1481,7 +1484,7 @@ cpdef produce_mutation_file(
 
             geneallelepair = {}
             for gene in gene_list:
-                for allele in ds[ds['Hugo_Symbol'] == gene][protein_change_identifier].unique().tolist():
+                for allele in ds[ds[col_genename] == gene][protein_change_identifier].unique().tolist():
                     if gene in geneallelepair.keys():
                         geneallelepair[gene].append(gene+'_'+allele)
                     else:
@@ -1493,8 +1496,8 @@ cpdef produce_mutation_file(
                 allpairlist = allpairlist + geneallelepair[pair]
 
             restable = pd.DataFrame(0,index=allpairlist,columns=phenotype.columns.tolist())
-            for i in ds[ds['Hugo_Symbol'].isin(gene_list)].index.tolist():
-                restable.loc[ds.loc[i]['Hugo_Symbol']+'_'+ds.loc[i][protein_change_identifier],ds.loc[i]['Tumor_Sample_Barcode']] = 1
+            for i in ds[ds[col_genename].isin(gene_list)].index.tolist():
+                restable.loc[ds.loc[i][col_genename]+'_'+ds.loc[i][protein_change_identifier],ds.loc[i][col_sample]] = 1
 
             size = len(phenotype.iloc[0])
             y = np.ascontiguousarray(np.asarray(phenotype.iloc[0].tolist()))
@@ -1605,12 +1608,12 @@ cpdef produce_mutation_file(
 
             print('start making gct by allele')
 
-            ds['Tumor_Sample_Barcode'].replace('-','_',regex=True,inplace=True)
+            ds[col_sample].replace('-','_',regex=True,inplace=True)
 
             if sample_list == None:
                 # Make list of sample and its unique index
                 sample_set=set()
-                for i in ds['Tumor_Sample_Barcode']:
+                for i in ds[col_sample]:
                     sample_set.add(i)
                 sample_list = list(sample_set)
             else:
@@ -1619,7 +1622,7 @@ cpdef produce_mutation_file(
             if name_match == False:
                 print('start matching name')
 
-                idlist = ds['Tumor_Sample_Barcode'].unique().tolist()
+                idlist = ds[col_sample].unique().tolist()
                 newcolnames = []
                 for i in sample_list:
                     iffind = False
@@ -1635,10 +1638,10 @@ cpdef produce_mutation_file(
 
             # Make gene list with all gene if no gene list input, find intersection if gene list is passed
             if gene_list == None:
-                gene_list = ds['Hugo_Symbol'].unique().tolist()
+                gene_list = ds[col_genename].unique().tolist()
             else:
                 inte = []
-                allgene = ds['Hugo_Symbol'].unique().tolist()
+                allgene = ds[col_genename].unique().tolist()
                 for i in gene_list:
                     if i in allgene:
                         inte.append(i)
@@ -1652,7 +1655,7 @@ cpdef produce_mutation_file(
             geneallelepair = {}
 
             for gene in gene_list:
-                for allele in ds[ds['Hugo_Symbol'] == gene][protein_change_identifier].unique().tolist():
+                for allele in ds[ds[col_genename] == gene][protein_change_identifier].unique().tolist():
                     if gene in geneallelepair.keys():
                         geneallelepair[gene].append(gene+'_'+allele)
                     else:
@@ -1665,8 +1668,8 @@ cpdef produce_mutation_file(
 
             restable = pd.DataFrame(0,index=allpairlist,columns=sample_list,dtype='uint8')
 
-            for i in ds[ds['Hugo_Symbol'].isin(gene_list)].index.tolist():
-                restable.loc[ds.loc[i]['Hugo_Symbol']+'_'+ds.loc[i][protein_change_identifier],ds.loc[i]['Tumor_Sample_Barcode']] = 1
+            for i in ds[ds[col_genename].isin(gene_list)].index.tolist():
+                restable.loc[ds.loc[i][col_genename]+'_'+ds.loc[i][protein_change_identifier],ds.loc[i][col_sample]] = 1
 
             # If make figure is True, make one figure with all instances by gene
             if make_figure == True:
@@ -1701,7 +1704,7 @@ cpdef produce_mutation_file(
             if sample_list == None:
                 # Make list of sample and its unique index
                 sample_set=set()
-                for i in ds['Tumor_Sample_Barcode']:
+                for i in ds[col_sample]:
                     sample_set.add(i)
                 sample_list = list(sample_set)
             else:
@@ -1709,10 +1712,10 @@ cpdef produce_mutation_file(
 
             # Make gene list with all gene if no gene list input, find intersection if gene list is passed
             if gene_list == None:
-                gene_list = ds['Hugo_Symbol'].unique().tolist()
+                gene_list = ds[col_genename].unique().tolist()
             else:
                 inte = []
-                allgene = ds['Hugo_Symbol'].unique().tolist()
+                allgene = ds[col_genename].unique().tolist()
                 for i in gene_list:
                     if i in allgene:
                         inte.append(i)
@@ -1726,7 +1729,7 @@ cpdef produce_mutation_file(
             genepair = {}
 
             for gene in gene_list:
-                for classification in ds[ds['Hugo_Symbol'] == gene]['Variant_Classification'].unique().tolist():
+                for classification in ds[ds[col_genename] == gene][col_class].unique().tolist():
                     if gene in genepair.keys():
                         genepair[gene].append(gene+'_'+classification)
                     else:
@@ -1734,7 +1737,7 @@ cpdef produce_mutation_file(
                 genepair[gene] = list(set(genepair[gene]))
 
             for gene in gene_list:
-                for allele in ds[ds['Hugo_Symbol'] == gene][protein_change_identifier].unique().tolist():
+                for allele in ds[ds[col_genename] == gene][protein_change_identifier].unique().tolist():
                     if gene in genepair.keys():
                         genepair[gene].append(gene+'_'+allele)
                     else:
@@ -1747,9 +1750,9 @@ cpdef produce_mutation_file(
 
             restable = pd.DataFrame(0,index=allpairlist,columns=sample_list)
 
-            for i in ds[ds['Hugo_Symbol'].isin(gene_list)].index.tolist():
-                restable.loc[ds.loc[i]['Hugo_Symbol']+'_'+ds.loc[i][protein_change_identifier],ds.loc[i]['Tumor_Sample_Barcode']] = 1
-                restable.loc[ds.loc[i]['Hugo_Symbol']+'_'+ds.loc[i]['Variant_Classification'],ds.loc[i]['Tumor_Sample_Barcode']] = 1
+            for i in ds[ds[col_genename].isin(gene_list)].index.tolist():
+                restable.loc[ds.loc[i][col_genename]+'_'+ds.loc[i][protein_change_identifier],ds.loc[i][col_sample]] = 1
+                restable.loc[ds.loc[i][col_genename]+'_'+ds.loc[i][col_class],ds.loc[i][col_sample]] = 1
 
             if make_figure == True:
                 if combine == True:
