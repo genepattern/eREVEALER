@@ -51,7 +51,6 @@ $ python example_notebook/DepMapToCCLE.py example_notebook/sample_input/NameConv
 $ REVEALER \
 	--target_file example_notebook/sample_input/CCLE_complete_sigs.gct
 	--feature_file example_notebook/sample_input/CCLE_class.gct
-	--seed_name NFE2L2_Mut_All
 	--out_folder example_notebook/sample_output/NRF2
 	--prefix CCLE_NRF2
 	--target_name NFE2L2.V2
