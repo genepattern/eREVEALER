@@ -36,7 +36,7 @@ long_description = '#TODO'
   
 setup(
         name ='REVEALER',
-        version ='2.0.5',
+        version ='2.0.6',
         author="Jiayan(Yoshii) Ma",
         author_email="jim095@ucsd.edu",
         url ='https://github.com/yoshihiko1218/REVEALER',
