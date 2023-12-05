@@ -15,7 +15,7 @@ Example of using REVEALER2 in jupyter notebook can be found [here](example_noteb
 ##
 
 REVEALER2 is separated into two parts: REVEALER_preprocess and REVEALER. If you start with MAF file or GCT file that you want to have a further filtering, then you should run REVEALER_process and then use output as input for REVEALER. If you have ready-to-use GCT format matrix, then you can directly run REVEALER. Explanation and general usage about REVEALER_preprocess and REVEALER are provided below.
-For detailed documentation regarding each parameter and workflow, please check individual documentation for [REVEALER_preprocess](REVEALER_Documentation.md) and [REVEALER](REVEALER_preprocess_Documentation.md)
+For detailed documentation regarding each parameter and workflow, please check individual documentation for [REVEALER_preprocess](./REVEALER_Documentation.md) and [REVEALER](./REVEALER_preprocess_Documentation.md)
 
 ## REVEALER Example
 
