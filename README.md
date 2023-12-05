@@ -42,7 +42,7 @@ $ REVEALER_preprocess \
 
 ### This step is to convert annotation from DepMap to CCLE.
 ```bash
-$ python DepMapToCCLE.py sample_input/NameConvert.csv sample_input/CCLE_class.gct sample_input/CCLE_class_rename.gct
+$ python example_notebook/DepMapToCCLE.py example_notebook/sample_input/NameConvert.csv example_notebook/sample_input/CCLE_class.gct example_notebook/sample_input/CCLE_class_rename.gct
 ```
 
 ## Run REVEALER with generated file and NFE2L2 signature:
