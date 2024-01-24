@@ -1,6 +1,6 @@
-# REVEALER2
+# eREVEALER
 
-REVEALER2 (**RE**peated e**V**aluation of variabl**E**s condition**AL** **E**ntropy and **R**edundancy 2) is a method for identifying groups of genomic alterations that together associate  with a functional activation, gene dependency or drug response profile. The combination of these alterations explains a larger fraction of samples displaying functional target activation or sensitivity than any individual alteration considered in isolation. REVEALER2 can be applied to a wide variety of problems and allows prior relevant background knowledge to be incorporated into the model. Compared to original REVEALER, REVEALER2.0 can work on much larger sample size with much higher speed.
+eREVEALER (**e**nhanced **RE**peated e**V**aluation of variabl**E**s condition**AL** **E**ntropy and **R**edundancy) is a method for identifying groups of genomic alterations that together associate  with a functional activation, gene dependency or drug response profile. The combination of these alterations explains a larger fraction of samples displaying functional target activation or sensitivity than any individual alteration considered in isolation. eREVEALER can be applied to a wide variety of problems and allows prior relevant background knowledge to be incorporated into the model. Compared to original REVEALER, eREVEALER can work on much larger sample size with much higher speed.
 
 ## Installation
 
@@ -10,7 +10,7 @@ REVEALER2 can be used in command line, jupyter notebook, and GenePattern. To use
 $ pip install revealer
 ```
 
-Example of using REVEALER2 in jupyter notebook can be found [here](example_notebook/REVEALER_Example.ipynb). REVEALER2 can also be found in GenePattern and directly run on GenePattern server. Details can be found here(link to genepattern module to be added).
+Example of using eREVEALER in jupyter notebook can be found [here](example_notebook/REVEALER_Example.ipynb). REVEALER2 can also be found in GenePattern and directly run on GenePattern server. Details can be found here(link to genepattern module to be added).
 
 ##
 
