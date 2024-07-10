@@ -1,0 +1,26 @@
+# Compiled Python files
+*.pyc
+*.pyo
+__pycache__/
+
+# Cython generated files
+*.c
+*.cpp
+*.so
+
+# Build directory
+build/
+
+# Distribution directory
+dist/
+
+# Compiled extension modules
+*.pyd
+*.dll
+*.so
+*.dylib
+
+# Miscellaneous
+*.egg-info/
+*.egg
+*.swp
