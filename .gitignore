@@ -7,6 +7,7 @@ __pycache__/
 *.c
 *.cpp
 *.so
+*.o
 
 # Build directory
 build/
@@ -24,3 +25,18 @@ dist/
 *.egg-info/
 *.egg
 *.swp
+
+# Ignore whole folder
+example_notebook/sample_output/NRF2
+example_notebook/sample_output/MEK
+
+# Ignore all files in sample input folder except few
+example_notebook/sample_input/*
+!example_notebook/sample_input/TissueType_CCLE.gct
+!example_notebook/sample_input/NameConvert.csv
+!example_notebook/sample_input/CCLE_complete_sigs.gct
+!example_notebook/sample_input/allgeneLocus.txt
+
+# Generated sample file
+*.gz
+.ipynb_checkpoints/

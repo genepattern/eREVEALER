@@ -835,6 +835,9 @@ def seedCombine(currentseed,newseed):
     return seed
 
 
+
+
+
 @cython.boundscheck(False)
 @cython.initializedcheck(False)
 @cython.cdivision(True)

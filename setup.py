@@ -36,7 +36,7 @@ long_description = '#TODO'
   
 setup(
         name ='REVEALER',
-        version ='2.0.6',
+        version ='2.0.8',
         author="Jiayan(Yoshii) Ma",
         author_email="jim095@ucsd.edu",
         url ='https://github.com/yoshihiko1218/REVEALER',
@@ -50,7 +50,8 @@ setup(
         entry_points ={
             'console_scripts': [
                 'REVEALER_preprocess = REVEALER.REVEALER_preprocess:main',
-                'REVEALER = REVEALER.REVEALER:main'
+                'REVEALER = REVEALER.REVEALER:main',
+                'REVEALER_test = REVEALER.REVEALER_test:main'
             ]
         },
         classifiers =[

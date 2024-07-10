@@ -13,6 +13,7 @@ REVEALER/REVEALER_Cython.pyx
 REVEALER/REVEALER_Cython_old.pyx
 REVEALER/REVEALER_preprocess.py
 REVEALER/REVEALER_runbenchmark.pyx
+REVEALER/REVEALER_test.py
 REVEALER/__init__.py
 REVEALER/setup_cython.py
 REVEALER.egg-info/PKG-INFO
@@ -41,3 +42,5 @@ REVEALER/ccal/plot_nmf.py
 REVEALER/ccal/plot_points.py
 REVEALER/ccal/save_plot.py
 REVEALER/ccal/style.py
+example_notebook/DepMapToCCLE.py
+example_notebook/__init__.py
