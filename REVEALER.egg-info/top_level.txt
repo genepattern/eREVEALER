@@ -1,2 +1,0 @@
-REVEALER
-example_notebook

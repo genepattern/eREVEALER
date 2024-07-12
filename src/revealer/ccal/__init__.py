@@ -1,0 +1,2 @@
+from revealer.ccal.nmf_consensus_cluster_with_multiple_k import nmf_consensus_cluster_with_multiple_k
+explore_components = nmf_consensus_cluster_with_multiple_k

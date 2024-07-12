@@ -1,5 +1,12 @@
-include REVEALER/ccal/*.py
-include REVEALER/*.pyx
-include *.txt
-exclude REVEALER/*.c
-exclude REVEALER/*.so
+include src/revealer/ccal/*.py
+include src/revealer/*.pyx
+include src/revealer/*.py
+include src/revealer/example/sample_input/__init__.py
+include src/revealer/example/sample_input/allgeneLocus.txt
+include src/revealer/example/sample_input/CCLE_complete_sigs.gct
+include src/revealer/example/sample_input/NameConvert.csv
+include src/revealer/example/sample_input/TissueType_CCLE.gct
+include src/revealer/example/sample_output/__init__.py
+include src/revealer/example/sample_output/CCLE_NRF2_groudtruth.txt
+include src/revealer/example/__init__.py
+include src/revealer/example/REVEALER_Example.ipynb
