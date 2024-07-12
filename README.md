@@ -3,6 +3,8 @@
 
 **eREVEALER** (**e**nhanced **RE**peated e**V**aluation of variabl**E**s condition**AL** **E**ntropy and **R**edundancy) is a powerful method for identifying groups of genomic alterations that, together, associate with functional activation, gene dependency, or drug response profiles. By combining these alterations, eREVEALER explains a larger fraction of samples displaying functional target activation or sensitivity than any individual alteration considered in isolation. eREVEALER extends the capabilities of the original REVEALER by handling larger sample sizes with significantly higher speed.
 
+![Alt text](docs/images/REVEALER_schematic.png)
+
 ## Installation
 
 ### Install via pip
