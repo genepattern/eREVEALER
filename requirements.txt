@@ -7,3 +7,4 @@ multiprocess == 0.70.11
 scipy >= 1.7.0
 tqdm == 4.62.0
 scikit-learn == 1.3.2
+requests == 2.32.3
