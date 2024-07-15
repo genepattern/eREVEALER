@@ -80,7 +80,7 @@ Here is the command-line version of the example found [here](example/REVEALER_Ex
 
 ### Download Example Input File
 
-First, download the example input file for the CCLE dataset MAF file from this link: [DepMap Public 23Q2 OmicsSomaticMutations.csv](https://depmap.org/portal/download/all/?releasename=DepMap+Public+23Q2&filename=OmicsSomaticMutations.csv). Save it to the `sample_input` folder (or another location, as long as you indicate the path in the command).
+First, download the example input file for the CCLE dataset MAF file from this link: [DepMap Public 23Q2 OmicsSomaticMutations.csv](https://depmap.org/portal/download/all/?releasename=DepMap+Public+23Q2&filename=OmicsSomaticMutations.csv). Save it to the `example/sample_input` folder (or another location, as long as you indicate the path in the command).
 
 ### Run File Preprocessing
 
