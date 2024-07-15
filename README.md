@@ -3,7 +3,19 @@
 
 **eREVEALER** (**e**nhanced **RE**peated e**V**aluation of variabl**E**s condition**AL** **E**ntropy and **R**edundancy) is a powerful method for identifying groups of genomic alterations that, together, associate with functional activation, gene dependency, or drug response profiles. By combining these alterations, eREVEALER explains a larger fraction of samples displaying functional target activation or sensitivity than any individual alteration considered in isolation. eREVEALER extends the capabilities of the original REVEALER by handling larger sample sizes with significantly higher speed.
 
+Preprint is avaiable [here](https://www.biorxiv.org/content/10.1101/2023.11.14.567106v1)
+
 ![Alt text](docs/images/REVEALER_schematic.png)
+
+## Overview
+
+eREVEALER consists of two main components: `REVEALER preprocess` and `REVEALER run`. 
+
+- **REVEALER preprocess**: If you start with a MAF file or a GCT file that needs further filtering, run `REVEALER preprocess` first and use its output as the input for `REVEALER run`.
+- **REVEALER run**: If you have a ready-to-use GCT format matrix, you can directly run `REVEALER run`.
+
+For detailed documentation regarding each parameter and workflow, refer to the individual documentation for [REVEALER_preprocess](docs/REVEALER_preprocess_Documentation.md) and [REVEALER](docs/REVEALER_Documentation.md).
+
 
 ## Installation
 
@@ -11,9 +23,9 @@
 
 eREVEALER can be used in command line, Jupyter Notebook, and GenePattern. To use eREVEALER in command line or Jupyter Notebook, install it via pip:
 
-\`\`\`bash
+```bash
 pip install revealer
-\`\`\`
+```
 
 ### Install via cloning the repository
 
@@ -21,41 +33,40 @@ Alternatively, you can install eREVEALER by cloning the repository and running t
 
 1. **Clone the repository**:
 
-    \`\`\`bash
+    ```bash
     git clone https://github.com/yoshihiko1218/REVEALER.git
     cd REVEALER
-    \`\`\`
+    ```
 
 2. **Install the dependencies**:
 
-    \`\`\`bash
+    ```bash
     pip install -r requirements.txt
-    \`\`\`
+    ```
 
 3. **Install the package**:
 
-    \`\`\`bash
+    ```bash
     python setup.py install
-    \`\`\`
+    ```
 
-## Usage
+## Testing installation with an example
+After you finish installing, you can test REVEALER by running 
 
-An example of using eREVEALER in a Jupyter Notebook can be found [here](example_notebook/REVEALER_Example.ipynb). eREVEALER is also available in GenePattern, allowing you to run it directly on the GenePattern server. More details can be found [here](link to genepattern module to be added).
+    ```bash
+    REVEALER test 
+    ```
+This will take approximately an hour.
 
-## Overview
+## Jupyter notebook Usage
 
-eREVEALER consists of two main components: `REVEALER_preprocess` and `REVEALER`. 
+Detailed example of using eREVEALER in Jupyter Notebook can be found [here](example/REVEALER_Example.ipynb). eREVEALER is also available in GenePattern, allowing you to run it directly on the GenePattern server. More details can be found [here](link to genepattern module to be added).
 
-- **REVEALER_preprocess**: If you start with a MAF file or a GCT file that needs further filtering, run `REVEALER_preprocess` first and use its output as the input for `REVEALER`.
-- **REVEALER**: If you have a ready-to-use GCT format matrix, you can directly run `REVEALER`.
-
-For detailed documentation regarding each parameter and workflow, refer to the individual documentation for [REVEALER_preprocess](./REVEALER_preprocess_Documentation.md) and [REVEALER](./REVEALER_Documentation.md).
-
-## REVEALER Example
+## Command line Usage
 
 The preprocessing step offers various modes, which are explained in detail in the GenePattern documentation. Below are example commands for different modes. 
 
-Here is the command-line version of the example found [here](example_notebook/REVEALER_Example.ipynb).
+Here is the command-line version of the example found [here](example/REVEALER_Example.ipynb).
 
 ### Download Example Input File
 
@@ -63,31 +74,32 @@ First, download the example input file for the CCLE dataset MAF file from this l
 
 ### Run File Preprocessing
 
-\`\`\`bash
-REVEALER_preprocess \
+```bash
+REVEALER preprocess \
     --mode class \
-    --input_file example_notebook/sample_input/OmicsSomaticMutations.csv \
+    --input_file example/sample_input/OmicsSomaticMutations.csv \
     --protein_change_identifier ProteinChange \
     --file_separator , \
     --col_genename HugoSymbol \
     --col_class VariantType \
     --col_sample ModelID \
     --prefix CCLE \
-    --out_folder example_notebook/sample_input/CCLE
-\`\`\`
+    --out_folder example/sample_input/CCLE \
+    --mode mutall
+```
 
 ### Convert Annotation from DepMap to CCLE
 
-\`\`\`bash
-python example_notebook/DepMapToCCLE.py example_notebook/sample_input/NameConvert.csv example_notebook/sample_input/CCLE_class.gct example_notebook/sample_input/CCLE_class_rename.gct
-\`\`\`
+```bash
+python example_notebook/DepMapToCCLE.py example/sample_input/NameConvert.csv example/sample_input/CCLE_Mut_All.gct example/sample_input/CCLE_Mut_All_rename.gct
+```
 
 ### Run REVEALER with Generated File and NFE2L2 Signature
 
-\`\`\`bash
-REVEALER \
+```bash
+REVEALER run \
     --target_file example_notebook/sample_input/CCLE_complete_sigs.gct \
-    --feature_file example_notebook/sample_input/CCLE_class.gct \
+    --feature_file example_notebook/sample_input/CCLE_Mut_All_rename.gct \
     --out_folder example_notebook/sample_output/NRF2 \
     --prefix CCLE_NRF2 \
     --target_name NFE2L2.V2 \
@@ -95,11 +107,11 @@ REVEALER \
     --if_bootstrap False \
     --gene_locus example_notebook/sample_input/allgeneLocus.txt \
     --tissue_file example_notebook/sample_input/TissueType_CCLE.gct
-\`\`\`
+```
 
 ## Contributing
 
-If you would like to contribute to eREVEALER, please submit a pull request or report issues on our [GitHub repository](https://github.com/yoshihiko1218/REVEALER).
+If you would like to contribute to eREVEALER, please submit a pull request or report issues on our [GitHub repository](https://github.com/yoshihiko1218/eREVEALER).
 
 ## License
 
