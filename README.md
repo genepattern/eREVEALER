@@ -21,7 +21,7 @@ For detailed documentation regarding each parameter and workflow, refer to the i
 
 ### Python version prerequisite
 
-Please use Python version >= 3.7 and < 3.9
+Please use Python version >= 3.7 and < 3.10
 
 ### Create Conda environment
 
