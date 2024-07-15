@@ -19,9 +19,19 @@ For detailed documentation regarding each parameter and workflow, refer to the i
 
 ## Installation
 
+### Python version prerequisite
+
+Please use Python version >= 3.7 and < 3.10
+
+### Create Conda environment
+
+```bash
+conda create -n revealer python==3.9
+```
+
 ### Install via pip
 
-eREVEALER can be used in command line, Jupyter Notebook, and GenePattern. To use eREVEALER in command line or Jupyter Notebook, install it via pip:
+eREVEALER can be used in the command line, Jupyter Notebook, and GenePattern. To use eREVEALER in the command line or Jupyter Notebook, install it via pip:
 
 ```bash
 pip install revealer
@@ -34,7 +44,7 @@ Alternatively, you can install eREVEALER by cloning the repository and running t
 1. **Clone the repository**:
 
     ```bash
-    git clone https://github.com/yoshihiko1218/REVEALER.git
+    git clone git@github.com:yoshihiko1218/eREVEALER.git
     cd REVEALER
     ```
 
@@ -53,9 +63,9 @@ Alternatively, you can install eREVEALER by cloning the repository and running t
 ## Testing installation with an example
 After you finish installing, you can test REVEALER by running 
 
-    ```bash
-    REVEALER test 
-    ```
+```bash
+REVEALER test 
+```
 This will take approximately an hour.
 
 ## Jupyter notebook Usage
@@ -70,7 +80,7 @@ Here is the command-line version of the example found [here](example/REVEALER_Ex
 
 ### Download Example Input File
 
-First, download the example input file for the CCLE dataset MAF file from this link: [DepMap Public 23Q2 OmicsSomaticMutations.csv](https://depmap.org/portal/download/all/?releasename=DepMap+Public+23Q2&filename=OmicsSomaticMutations.csv). Save it to the `sample_input` folder (or another location, as long as you indicate the path in the command).
+First, download the example input file for the CCLE dataset MAF file from this link: [DepMap Public 23Q2 OmicsSomaticMutations.csv](https://depmap.org/portal/download/all/?releasename=DepMap+Public+23Q2&filename=OmicsSomaticMutations.csv). Save it to the `example/sample_input` folder (or another location, as long as you indicate the path in the command).
 
 ### Run File Preprocessing
 
@@ -91,7 +101,7 @@ REVEALER preprocess \
 ### Convert Annotation from DepMap to CCLE
 
 ```bash
-python example_notebook/DepMapToCCLE.py example/sample_input/NameConvert.csv example/sample_input/CCLE_Mut_All.gct example/sample_input/CCLE_Mut_All_rename.gct
+python example/DepMapToCCLE.py example/sample_input/NameConvert.csv example/sample_input/CCLE_Mut_All.gct example/sample_input/CCLE_Mut_All_rename.gct
 ```
 
 ### Run REVEALER with Generated File and NFE2L2 Signature
