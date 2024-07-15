@@ -253,7 +253,7 @@ def preprocess(args):
 
     produce_mutation_file(
         maf_input_file=input_file if input_file[-3:] == 'maf' else None,
-        gct_input_file=input_file if input_file[-3:] == 'gct' else None,
+        gct_input_file=input_file if (input_file[-3:] == 'gct' or input_file[-3:] == 'csv') else None,
         gct_output_file_prefix=args.prefix,
         phenotype_file=args.phenotype_file,
         class_list=class_list,

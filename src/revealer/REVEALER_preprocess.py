@@ -335,7 +335,7 @@ combine="""+str(combine))
             gzip=gzip,
             combine = combine)
 
-    elif input_file[-3:] == 'maf':
+    elif input_file[-3:] == 'maf' or input_file[-3:] == 'csv':
         produce_mutation_file(
             maf_input_file = input_file,
             gct_input_file = None,
