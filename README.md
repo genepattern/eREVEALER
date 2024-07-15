@@ -31,7 +31,7 @@ conda create -n revealer python==3.9
 
 ### Install via pip
 
-eREVEALER can be used in command line, Jupyter Notebook, and GenePattern. To use eREVEALER in command line or Jupyter Notebook, install it via pip:
+eREVEALER can be used in the command line, Jupyter Notebook, and GenePattern. To use eREVEALER in the command line or Jupyter Notebook, install it via pip:
 
 ```bash
 pip install revealer
@@ -63,9 +63,9 @@ Alternatively, you can install eREVEALER by cloning the repository and running t
 ## Testing installation with an example
 After you finish installing, you can test REVEALER by running 
 
-    ```bash
-    REVEALER test 
-    ```
+```bash
+REVEALER test 
+```
 This will take approximately an hour.
 
 ## Jupyter notebook Usage
