@@ -34,7 +34,7 @@ Alternatively, you can install eREVEALER by cloning the repository and running t
 1. **Clone the repository**:
 
     ```bash
-    git clone https://github.com/yoshihiko1218/REVEALER.git
+    git clone git@github.com:yoshihiko1218/eREVEALER.git
     cd REVEALER
     ```
 
