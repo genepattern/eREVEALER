@@ -19,6 +19,10 @@ For detailed documentation regarding each parameter and workflow, refer to the i
 
 ## Installation
 
+### Python version prerequisite
+
+Please use Python version >= 3.7 and < 3.9
+
 ### Install via pip
 
 eREVEALER can be used in command line, Jupyter Notebook, and GenePattern. To use eREVEALER in command line or Jupyter Notebook, install it via pip:
