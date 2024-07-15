@@ -101,7 +101,7 @@ REVEALER preprocess \
 ### Convert Annotation from DepMap to CCLE
 
 ```bash
-python example_notebook/DepMapToCCLE.py example/sample_input/NameConvert.csv example/sample_input/CCLE_Mut_All.gct example/sample_input/CCLE_Mut_All_rename.gct
+python example/DepMapToCCLE.py example/sample_input/NameConvert.csv example/sample_input/CCLE_Mut_All.gct example/sample_input/CCLE_Mut_All_rename.gct
 ```
 
 ### Run REVEALER with Generated File and NFE2L2 Signature
