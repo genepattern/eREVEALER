@@ -2218,5 +2218,5 @@ cpdef produce_mutation_file(
                 resultdf.to_csv(output_file, sep= '\t')
 
     if gzip == True:
-        with tarfile.open(gct_output_file_prefix+'.tar.gz', "w:gz") as tar:
+        with tarfile.open(out_folder+gct_output_file_prefix+'.tar.gz', "w:gz") as tar:
             tar.add(out_folder, arcname=os.path.basename(out_folder))

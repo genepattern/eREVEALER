@@ -47,7 +47,7 @@ def run_test(args):
         if file["name"] == "OmicsSomaticMutations.csv":
             download_url = file["download_url"]
             # Set the relative path for the output file
-            output_directory = os.path.join(script_dir, "..", "..", "example", "sample_input")
+            output_directory = os.path.join(script_dir, "data", "sample_input")
             os.makedirs(output_directory, exist_ok=True)
             output_path = os.path.join(output_directory, "OmicsSomaticMutations.csv")
             # Download the file
@@ -57,9 +57,9 @@ def run_test(args):
     # Perform any additional testing logic here
     print("Creating input file from mutation file...")
     produce_mutation_file(
-        maf_input_file=os.path.join(script_dir, "..", "..", "example", "sample_input", "OmicsSomaticMutations.csv"),
+        maf_input_file=os.path.join(script_dir, "data", "sample_input", "OmicsSomaticMutations.csv"),
         gct_output_file_prefix='CCLE',
-        out_folder=os.path.join(script_dir, "..", "..", "example", "sample_input"),
+        out_folder=os.path.join(script_dir, "data", "sample_input"),
         file_separator=',',
         protein_change_identifier='ProteinChange',
         col_genename='HugoSymbol',
@@ -69,31 +69,31 @@ def run_test(args):
     )
 
     run(
-        os.path.join(script_dir, "..", "..", "example", "sample_input", "NameConvert.csv"),
-        os.path.join(script_dir, "..", "..", "example", "sample_input", "CCLE_Mut_All.gct"),
-        os.path.join(script_dir, "..", "..", "example", "sample_input", "CCLE_Mut_All_rename.gct")
+        os.path.join(script_dir, "data", "sample_input", "NameConvert.csv"),
+        os.path.join(script_dir, "data", "sample_input", "CCLE_Mut_All.gct"),
+        os.path.join(script_dir, "data", "sample_input", "CCLE_Mut_All_rename.gct")
     )
 
     # Input too large, please contact jim095@ucsd.edu for original file
     runREVEALER(
-        target_file=os.path.join(script_dir, "..", "..", "example", "sample_input", "CCLE_complete_sigs.gct"),
-        feature_files=[os.path.join(script_dir, "..", "..", "example", "sample_input", "CCLE_Mut_All_rename.gct")],
-        gmt_file=os.path.join(script_dir, "..", "..", "example", "sample_input", "CCLE_Mut_All.gmt"),
+        target_file=os.path.join(script_dir, "data", "sample_input", "CCLE_complete_sigs.gct"),
+        feature_files=[os.path.join(script_dir, "data", "sample_input", "CCLE_Mut_All_rename.gct")],
+        gmt_file=os.path.join(script_dir, "data", "sample_input", "CCLE_Mut_All.gmt"),
         seed_name=['NFE2L2_Mut_All'],
-        out_folder=os.path.join(script_dir, "..", "..", "example", "sample_output", "NRF2"),
+        out_folder=os.path.join(script_dir, "data", "sample_output", "NRF2"),
         prefix='CCLE_NRF2',
         target_name='NFE2L2.V2',
         if_pval=False,
         if_bootstrap=False,
         if_intermediate=True,
-        gene_locus=os.path.join(script_dir, "..", "..", "example", "sample_input", "allgeneLocus.txt"),
-        tissue_file=os.path.join(script_dir, "..", "..", "example", "sample_input", "TissueType_CCLE.gct"),
+        gene_locus=os.path.join(script_dir, "data", "sample_input", "allgeneLocus.txt"),
+        tissue_file=os.path.join(script_dir, "data", "sample_input", "TissueType_CCLE.gct"),
         max_iteration = 10
     )
 
     # Path to the generated file and ground truth file
-    generated_file = os.path.join(script_dir,  "..", "..", "example", "sample_output", "NRF2", "CCLE_NRF2_Result.txt")
-    ground_truth_file = os.path.join(script_dir, "..", "..", "example", "sample_output", "CCLE_NRF2_groudtruth.txt")
+    generated_file = os.path.join(script_dir,  "data", "sample_output", "NRF2", "CCLE_NRF2_Result.txt")
+    ground_truth_file = os.path.join(script_dir, "data", "sample_output", "CCLE_NRF2_groudtruth.txt")
 
     # Compare the first columns of the generated file and the ground truth file
     verify_test(generated_file, ground_truth_file)

@@ -18,7 +18,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "REVEALER"
-version = "2.1.4"
+version = "2.1.6"
 description = "REVEALER#TODO"
 requires-python = ">=3.7, <3.10"
 authors = [
@@ -33,3 +33,6 @@ classifiers = [
 ]
 dynamic = ["keywords", "scripts", "dependencies"]
 
+[tool.isort]
+profile = "black"
+src_paths = ["src/revealer", "example"]

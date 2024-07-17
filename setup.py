@@ -36,7 +36,7 @@ long_description = '#TODO'
 
 setup(
     name='REVEALER',
-    version='2.1.4',
+    version='2.1.6',
     author="Jiayan(Yoshii) Ma",
     author_email="jim095@ucsd.edu",
     url='https://github.com/yoshihiko1218/REVEALER',
@@ -66,7 +66,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     package_data={
-        '': ['example/sample_input/*', 'example/sample_output/*'],
+        '': ['src/revealer/data/*'],
     },
 )
 
