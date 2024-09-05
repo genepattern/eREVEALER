@@ -283,14 +283,18 @@ def preprocess(args):
     )
 
 def run(args):
-    feature_files = args.feature_files.split(',')
-    for feature_file in feature_files:
-        if feature_file[-3:] != 'gct':
-            print('Feature files has to be in gct format.')
-            sys.exit(1)
-    
-    if args.target_file[-3:] != 'gct':
-        print('Target file has to be in gct format.')
+    def process_file_input(file_input):
+        if file_input.endswith('.gct'):
+            return [file_input]
+        elif file_input.endswith('.txt'):
+            with open(file_input, 'r') as f:
+                return [line.strip() for line in f if line.strip() and line.strip().endswith('.gct')]
+        else:
+            return [f.strip() for f in file_input.split(',') if f.strip().endswith('.gct')]
+
+    feature_files = process_file_input(args.feature_files)
+    if not feature_files:
+        print('No valid .gct files found in the feature files input.')
         sys.exit(1)
 
     if args.gmt_file is not None:
@@ -303,13 +307,12 @@ def run(args):
         gmt_file = None
 
     if args.seed_files is not None:
-        if args.seed_files[-3:] != 'gct':
-            print('Seed file has to be in gct format.')
+        seed_files = process_file_input(args.seed_files)
+        if not seed_files:
+            print('No valid .gct files found in the seed files input.')
             sys.exit(1)
-        else:
-            seed_files = args.seed_files.split(',')
     else:
-        seed_files = args.feature_files.split(',')
+        seed_files = feature_files
 
     if args.seed_name is not None:
         if args.seed_name[-3:] != 'txt':

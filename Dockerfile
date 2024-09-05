@@ -32,7 +32,9 @@ RUN set -ex; \
         libffi-dev \
         liblzma-dev \
         tk-dev \
-        uuid-dev; \
+        uuid-dev \
+        libatlas-base-dev \
+        gfortran; \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python
@@ -89,8 +91,8 @@ COPY requirements.txt /app/requirements.txt
 # Install the dependencies
 RUN pip install -r /app/requirements.txt
 
-# Install REVEALER (if it's available via pip)
-RUN pip install REVEALER
+# Install REVEALER
+RUN pip install revealer
 
 # Set the default command
 CMD ["python3"]
