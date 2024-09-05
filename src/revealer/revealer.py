@@ -50,9 +50,9 @@ def main():
                                      help="Threshold for weight. Default is 0.7.")
     preprocess_optional.add_argument("-gl", "--gene_list", dest="gene_list", default=None,
                                      help="List of Gene to run. Can be file or ',' separated names. Default is all gene.")
-    preprocess_optional.add_argument("-nm", "--name_match", dest="name_match", action='store_true', default=False,
+    preprocess_optional.add_argument("-nm", "--name_match", dest="name_match", type=str, choices=['True', 'False'], default='True',
                                      help="Indicate if sample name in phenotype file and input file are matching. Default is True.")
-    preprocess_optional.add_argument("-mf", "--make_figure", dest="make_figure", action='store_true', default=False,
+    preprocess_optional.add_argument("-mf", "--make_figure", dest="make_figure", type=str, choices=['True', 'False'], default='False',
                                      help="Indicate if figures are created. Recommended only when you run few genes. Default is False.")
     preprocess_optional.add_argument("-ff", "--figure_format", dest="figure_format", default='pdf',
                                      help="Format for figure. Default is pdf.")
@@ -60,8 +60,8 @@ def main():
                                      help="List of sample to be used.")
     preprocess_optional.add_argument("-tr", "--total_ratio", dest="total_ratio", type=float, default=0.4,
                                      help="Ratio of gene occrence compared to total sample number. default is 0.4")
-    preprocess_optional.add_argument("-ig", "--if_gmt", dest="if_gmt", action='store_true', default=False,
-                                     help="Indicate if gmt file should be generated. Default if True.")
+    preprocess_optional.add_argument("-ig", "--if_gmt", dest="if_gmt", type=str, choices=['True', 'False'], default='True',
+                                     help="Indicate if gmt file should be generated. Default is True.")
     preprocess_optional.add_argument("-v", "--verbose", dest="verbose", type=int, default=1,
                                      help="Indicate level of verbose. default is 1.")
     preprocess_optional.add_argument("-k", "--k_size", dest="k", type=int, default=30,
@@ -70,9 +70,9 @@ def main():
                                      help="Value of bandwidth multiplier. Has to be float or int. Default is 0.65.")
     preprocess_optional.add_argument("-ba", "--bandwidth_adjustment", dest="bandwidth_adj", type=float, default=-0.95,
                                      help="Value of bandwidth adjustment. Has to be float or int. Default is -0.95")
-    preprocess_optional.add_argument("-gz", "--gzip", dest="gzip", action='store_true', default=False,
+    preprocess_optional.add_argument("-gz", "--gzip", dest="gzip", type=str, choices=['True', 'False'], default='True',
                                      help="If output file should be gzipped.")
-    preprocess_optional.add_argument("-cb", "--combine", dest="combine", action='store_true', default=False,
+    preprocess_optional.add_argument("-cb", "--combine", dest="combine", type=str, choices=['True', 'False'], default='True',
                                      help="Combine alleles by gene when making figures")
 
     # Run subcommand
@@ -113,8 +113,8 @@ def main():
                               help="Lower threshold to remove feature. If int passed, threshold of absolute value is made. If float passed, threshold made by ratio. Default is 3.")
     run_optional.add_argument("-ht", "--high_threshold", dest="high_threshold", type=float, default=100,
                               help="Higher threshold to remove feature. If int passed, threshold of absolute value is made. If float passed, threshold made by ratio. Default is 0.2.")
-    run_optional.add_argument("-ic", "--if_collapse", dest="collapse", action='store_true', default=False,
-                              help="Indicate if features are collapsed for intermediate report. Has to be True or False. Default is False.")
+    run_optional.add_argument("-ic", "--if_collapse", dest="collapse", type=str, choices=['True', 'False'], default='False',
+                              help="Indicate if features are collapsed for intermediate report. Default is False.")
     run_optional.add_argument("-ff", "--figure_format", dest="figure_format", default='pdf',
                               help="Format for figure. Can be any figure format available in matplotlib. Default is pdf.")
     run_optional.add_argument("-tn", "--thread_number", dest="thread_number", type=int, default=1,
@@ -129,14 +129,14 @@ def main():
                               help="Number of iteration. Has to be int. -1 indicates stop by automatic detection. Default is -1")
     run_optional.add_argument("-s", "--subset", dest="subset", default='no',
                               help="Subset of samples to be chosen. Has to be file with one column with subset of sample names in target file. Default is use all columns.")
-    run_optional.add_argument("-ip", "--if_pvalue", dest="if_pval", action='store_true', default=False,
-                              help="Indicate if pvalues are calculated and plotted on figure. Has to be True or False. Default is True.")
-    run_optional.add_argument("-ib", "--if_bootstrap", dest="if_bootstrap", action='store_true', default=False,
-                              help="Indicate if variance are calculated by bootstrap and plotted on figure. Has to be True or False. Default is True.")
-    run_optional.add_argument("-icl", "--if_cluster", dest="if_cluster", action='store_true', default=False,
-                              help="Indicate if features are clustered using NMF for intermediate report. Has to be True or False. Default is False.")
-    run_optional.add_argument("-ii", "--if_intermediate", dest="if_intermediate", action='store_true', default=False,
-                              help="Indicate if intermediate reports are generated. Has to be True or False. Default is True.")
+    run_optional.add_argument("-ip", "--if_pvalue", dest="if_pval", type=str, choices=['True', 'False'], default='True',
+                              help="Indicate if pvalues are calculated and plotted on figure. Default is True.")
+    run_optional.add_argument("-ib", "--if_bootstrap", dest="if_bootstrap", type=str, choices=['True', 'False'], default='True',
+                              help="Indicate if variance are calculated by bootstrap and plotted on figure. Default is True.")
+    run_optional.add_argument("-icl", "--if_cluster", dest="if_cluster", type=str, choices=['True', 'False'], default='False',
+                              help="Indicate if features are clustered using NMF for intermediate report. Default is False.")
+    run_optional.add_argument("-ii", "--if_intermediate", dest="if_intermediate", type=str, choices=['True', 'False'], default='True',
+                              help="Indicate if intermediate reports are generated. Default is True.")
     run_optional.add_argument("-o", "--out_folder", dest="out_folder", default='./',
                               help="Path to directory to put output files. default is current directory.")
     run_optional.add_argument("-sep", "--separator", dest="separator", default='_',
@@ -147,11 +147,11 @@ def main():
                               help="gmt file for allele information.")
     run_optional.add_argument("-a", "--alpha", dest="alpha", type=float, default=1,
                               help="Power to raise value. Default is 1.")
-    run_optional.add_argument("-gc", "--grid_check", dest="grid_check", action='store_true', default=False,
+    run_optional.add_argument("-gc", "--grid_check", dest="grid_check", type=str, choices=['True', 'False'], default='False',
                               help="Indicate if run Grid Check mode. Default is False.")
     run_optional.add_argument("-tif", "--tissue_file", dest="tissue_file", default=None,
                               help="File of tissue information.")
-    run_optional.add_argument("-gz", "--gzip", dest="gzip", action='store_true', default=False,
+    run_optional.add_argument("-gz", "--gzip", dest="gzip", type=str, choices=['True', 'False'], default='False',
                               help="If output file should be gzipped.")
     run_optional.add_argument("-nh", "--neighborhood", dest="neighborhood", type=int, default=4,
                               help="number of neighborhood.")
@@ -266,17 +266,17 @@ def preprocess(args):
         frequency_threshold=args.frequency_threshold,
         weight_threshold=args.weight_threshold,
         gene_list=gene_list,
-        name_match=args.name_match,
-        make_figure=args.make_figure,
+        name_match=args.name_match == 'True',
+        make_figure=args.make_figure == 'True',
         figure_format=args.figure_format,
         out_folder=args.out_folder,
         ratio=args.ratio,
         sample_list=sample_list,
         total_ratio=args.total_ratio,
-        if_gmt=args.if_gmt,
+        if_gmt=args.if_gmt == 'True',
         k=args.k,
-        gzip=args.gzip,
-        combine=args.combine,
+        gzip=args.gzip == 'True',
+        combine=args.combine == 'True',
         col_genename=args.col_genename,
         col_class=args.col_class,
         col_sample=args.col_sample
@@ -440,7 +440,7 @@ def run(args):
                 num_top=args.num_top,
                 low_threshold=args.low_threshold,
                 high_threshold=args.high_threshold,
-                collapse=args.collapse,
+                collapse=args.collapse == 'True',
                 normalize=args.normalize,
                 gene_locus=args.gene_locus,
                 verbose=args.verbose,
@@ -448,22 +448,23 @@ def run(args):
                 thread_number=args.thread_number,
                 figure_format=args.figure_format,
                 subset=subset,
-                if_pval=args.if_pval,
-                if_bootstrap=args.if_bootstrap,
-                if_cluster=args.if_cluster,
-                if_intermediate=args.if_intermediate,
+                if_pval=args.if_pval == 'True',
+                if_bootstrap=args.if_bootstrap == 'True',
+                if_cluster=args.if_cluster == 'True',
+                if_intermediate=args.if_intermediate == 'True',
                 out_folder=args.out_folder,
                 gene_set=gene_set,
                 gene_separator=args.separator,
                 gmt_file=gmt_file,
                 alpha=args.alpha,
                 tissue_file=args.tissue_file,
-                gzip=args.gzip,
+                gzip=args.gzip == 'True',
                 neighborhood=args.neighborhood,
                 feature_remove=feature_remove,
                 color=args.color,
                 linewidth=args.line_width,
                 feature_set=feature_set)
+
 
 if __name__ == '__main__':
     main()
