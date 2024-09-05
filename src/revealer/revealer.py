@@ -50,7 +50,7 @@ def main():
                                      help="Threshold for weight. Default is 0.7.")
     preprocess_optional.add_argument("-gl", "--gene_list", dest="gene_list", default=None,
                                      help="List of Gene to run. Can be file or ',' separated names. Default is all gene.")
-    preprocess_optional.add_argument("-nm", "--name_match", dest="name_match", action='store_true', default=True,
+    preprocess_optional.add_argument("-nm", "--name_match", dest="name_match", action='store_true', default=False,
                                      help="Indicate if sample name in phenotype file and input file are matching. Default is True.")
     preprocess_optional.add_argument("-mf", "--make_figure", dest="make_figure", action='store_true', default=False,
                                      help="Indicate if figures are created. Recommended only when you run few genes. Default is False.")
@@ -60,7 +60,7 @@ def main():
                                      help="List of sample to be used.")
     preprocess_optional.add_argument("-tr", "--total_ratio", dest="total_ratio", type=float, default=0.4,
                                      help="Ratio of gene occrence compared to total sample number. default is 0.4")
-    preprocess_optional.add_argument("-ig", "--if_gmt", dest="if_gmt", action='store_true', default=True,
+    preprocess_optional.add_argument("-ig", "--if_gmt", dest="if_gmt", action='store_true', default=False,
                                      help="Indicate if gmt file should be generated. Default if True.")
     preprocess_optional.add_argument("-v", "--verbose", dest="verbose", type=int, default=1,
                                      help="Indicate level of verbose. default is 1.")
@@ -70,9 +70,9 @@ def main():
                                      help="Value of bandwidth multiplier. Has to be float or int. Default is 0.65.")
     preprocess_optional.add_argument("-ba", "--bandwidth_adjustment", dest="bandwidth_adj", type=float, default=-0.95,
                                      help="Value of bandwidth adjustment. Has to be float or int. Default is -0.95")
-    preprocess_optional.add_argument("-gz", "--gzip", dest="gzip", action='store_true', default=True,
+    preprocess_optional.add_argument("-gz", "--gzip", dest="gzip", action='store_true', default=False,
                                      help="If output file should be gzipped.")
-    preprocess_optional.add_argument("-cb", "--combine", dest="combine", action='store_true', default=True,
+    preprocess_optional.add_argument("-cb", "--combine", dest="combine", action='store_true', default=False,
                                      help="Combine alleles by gene when making figures")
 
     # Run subcommand
@@ -113,7 +113,7 @@ def main():
                               help="Lower threshold to remove feature. If int passed, threshold of absolute value is made. If float passed, threshold made by ratio. Default is 3.")
     run_optional.add_argument("-ht", "--high_threshold", dest="high_threshold", type=float, default=100,
                               help="Higher threshold to remove feature. If int passed, threshold of absolute value is made. If float passed, threshold made by ratio. Default is 0.2.")
-    run_optional.add_argument("-ic", "--if_collapse", dest="collapse", action='store_true', default=True,
+    run_optional.add_argument("-ic", "--if_collapse", dest="collapse", action='store_true', default=False,
                               help="Indicate if features are collapsed for intermediate report. Has to be True or False. Default is False.")
     run_optional.add_argument("-ff", "--figure_format", dest="figure_format", default='pdf',
                               help="Format for figure. Can be any figure format available in matplotlib. Default is pdf.")
@@ -129,13 +129,13 @@ def main():
                               help="Number of iteration. Has to be int. -1 indicates stop by automatic detection. Default is -1")
     run_optional.add_argument("-s", "--subset", dest="subset", default='no',
                               help="Subset of samples to be chosen. Has to be file with one column with subset of sample names in target file. Default is use all columns.")
-    run_optional.add_argument("-ip", "--if_pvalue", dest="if_pval", action='store_true', default=True,
+    run_optional.add_argument("-ip", "--if_pvalue", dest="if_pval", action='store_true', default=False,
                               help="Indicate if pvalues are calculated and plotted on figure. Has to be True or False. Default is True.")
-    run_optional.add_argument("-ib", "--if_bootstrap", dest="if_bootstrap", action='store_true', default=True,
+    run_optional.add_argument("-ib", "--if_bootstrap", dest="if_bootstrap", action='store_true', default=False,
                               help="Indicate if variance are calculated by bootstrap and plotted on figure. Has to be True or False. Default is True.")
     run_optional.add_argument("-icl", "--if_cluster", dest="if_cluster", action='store_true', default=False,
                               help="Indicate if features are clustered using NMF for intermediate report. Has to be True or False. Default is False.")
-    run_optional.add_argument("-ii", "--if_intermediate", dest="if_intermediate", action='store_true', default=True,
+    run_optional.add_argument("-ii", "--if_intermediate", dest="if_intermediate", action='store_true', default=False,
                               help="Indicate if intermediate reports are generated. Has to be True or False. Default is True.")
     run_optional.add_argument("-o", "--out_folder", dest="out_folder", default='./',
                               help="Path to directory to put output files. default is current directory.")
@@ -151,7 +151,7 @@ def main():
                               help="Indicate if run Grid Check mode. Default is False.")
     run_optional.add_argument("-tif", "--tissue_file", dest="tissue_file", default=None,
                               help="File of tissue information.")
-    run_optional.add_argument("-gz", "--gzip", dest="gzip", action='store_true', default=True,
+    run_optional.add_argument("-gz", "--gzip", dest="gzip", action='store_true', default=False,
                               help="If output file should be gzipped.")
     run_optional.add_argument("-nh", "--neighborhood", dest="neighborhood", type=int, default=4,
                               help="number of neighborhood.")
