@@ -74,6 +74,8 @@ def main():
                                      help="If output file should be gzipped.")
     preprocess_optional.add_argument("-cb", "--combine", dest="combine", type=str, choices=['True', 'False'], default='True',
                                      help="Combine alleles by gene when making figures")
+    preprocess_optional.add_argument("-nh", "--neighborhood", dest="neighborhood", type=int, default=4,
+                              help="number of neighborhood.")
 
     # Run subcommand
     run_parser = subparsers.add_parser('run', help='Run REVEALER analysis.')
@@ -249,6 +251,7 @@ def preprocess(args):
     bandwidth_adj={str(args.bandwidth_adj)}
     gzip={str(args.gzip)}
     combine={str(args.combine)}
+    neighborhood={str(args.neighborhood)}
     """)
 
     produce_mutation_file(
@@ -279,7 +282,8 @@ def preprocess(args):
         combine=args.combine == 'True',
         col_genename=args.col_genename,
         col_class=args.col_class,
-        col_sample=args.col_sample
+        col_sample=args.col_sample,
+        neighborhood=args.neighborhood,
     )
 
 def run(args):
