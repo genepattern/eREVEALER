@@ -1,0 +1,65 @@
+[
+    {
+        "name": "Basic parameters",
+        "description": "These parameters are essential for the analysis.",
+        "parameters": [
+            "target_file",
+            "feature_files",
+            "target_name",
+            "direction",
+            "gene_locus",
+            "prefix",
+            "seed_files",
+            "seed_name"
+        ]
+    },
+    {
+        "name": "Advanced parameters",
+        "description": "Additional parameters with standard defaults; typically, you will run with these parameters set to their default values.",
+        "hidden": false
+    },
+    {
+        "name": "Advanced parameters/Algorithmic",
+        "hidden": true,
+        "parameters": [
+            "k_size",
+            "bandwidth_multiplication",
+            "bandwidth_adjustment",
+            "alpha",
+            "neighborhood"
+        ]
+    },
+    {
+        "name": "Advanced parameters/Data Modification",
+        "description": "Parameters that modify how the utilized data is handled during the analysis.",
+        "hidden": true,
+        "parameters": [
+            "gene_set",
+            "separator",
+            "subset",
+            "feature_remove",
+            "feature_set",
+            "low_threshold",
+            "high_threshold",
+            "normalize"
+        ]
+    },
+    {
+        "name": "Advanced parameters/Reporting",
+        "description": "Parameters controlling the output, reporting, and visualization aspects of the analysis.",
+        "hidden": true,
+        "parameters": [
+            "figure_format",
+            "if_intermediate",
+            "if_pvalue",
+            "if_cluster",
+            "if_bootstrap",
+            "if_collapse",
+            "num_top",
+            "max_iteration",
+            "verbose",
+            "tissue_file",
+            "gmt_file"
+        ]
+    }
+]
