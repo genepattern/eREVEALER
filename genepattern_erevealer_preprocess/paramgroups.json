@@ -1,0 +1,62 @@
+[
+    {
+        "name": "Basic parameters",
+        "description": "These parameters are essential for the preprocessing step.",
+        "parameters": [
+            "input_file",
+            "protein_change_identifier",
+            "col_genename",
+            "col_class",
+            "col_sample"
+        ]
+    },
+    {
+        "name": "Advanced parameters",
+        "description": "Additional parameters with standard defaults; typically, you will run with these parameters set to their default values.",
+        "hidden": false
+    },
+    {
+        "name": "Advanced parameters/Algorithmic",
+        "hidden": true,
+        "parameters": [
+            "k_size",
+            "bandwidth_multiplication",
+            "bandwidth_adjustment",
+            "neighborhood"
+        ]
+    },
+    {
+        "name": "Advanced parameters/Data Modification",
+        "description": "Parameters that modify how the utilized data is handled during the preprocessing step.",
+        "hidden": true,
+        "parameters": [
+            "mode",
+            "ratio",
+            "phenotype_file",
+            "class_file",
+            "class_separator",
+            "phenotype_name",
+            "file_separator",
+            "direction",
+            "frequency_threshold",
+            "weight_threshold",
+            "gene_list",
+            "name_match",
+            "sample_list",
+            "total_ratio",
+            "combine"
+        ]
+    },
+    {
+        "name": "Advanced parameters/Reporting",
+        "description": "Parameters controlling the output, reporting, and visualization aspects of the preprocessing step.",
+        "hidden": true,
+        "parameters": [
+            "make_figure",
+            "figure_format",
+            "if_gmt",
+            "verbose",
+            "prefix"
+        ]
+    }
+]
